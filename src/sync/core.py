@@ -154,8 +154,6 @@ class Syncer:
         # process remote changes
         changed_files = set(dst_diff.changes) | set(src_diff.changes)
 
-        LOGGER.debug('all changed files: %s', changed_files)
-
         actions = {}
         for path in changed_files:
             src_diff_type = src_diff.changes.get(path, None)

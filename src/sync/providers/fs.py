@@ -8,6 +8,10 @@ from sync.hashing import Hasher, hash_dict
 LOGGER = logging.getLogger(__name__)
 
 
+# TODO: provider should be able to have cache store
+#  (e.g. to avoid recomputing hashes), this probably can be united with the
+#  other provider state
+# TODO: handle empty directories? git does not handle that...
 class FSProvider(ProviderBase):
     BUFFER_SIZE = 4096
 
@@ -51,6 +55,11 @@ class FSProvider(ProviderBase):
     # TODO: write to temp file, then swap
     def write(self, path: str, stream: BinaryIO):
         abs_path = os.path.join(self.root_dir, path)
+        dir_path = os.path.dirname(abs_path)
+
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+
         with open(abs_path, 'wb') as f:
             while True:
                 buffer = stream.read(self.BUFFER_SIZE)
