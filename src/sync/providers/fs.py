@@ -12,6 +12,7 @@ class FSProvider(ProviderBase):
     BUFFER_SIZE = 4096
 
     def __init__(self, root_dir: str):
+        LOGGER.info('init FS provider with root at "%s"', root_dir)
         self.root_dir = os.path.abspath(os.path.expanduser(root_dir))
         self.hasher = Hasher()
 
