@@ -3,7 +3,7 @@ import os.path
 from typing import BinaryIO
 
 from sync.core import ProviderBase, StorageState, FileState
-from sync.hashing import Hasher
+from sync.hashing import Hasher, hash_dict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -15,6 +15,11 @@ class FSProvider(ProviderBase):
         LOGGER.info('init FS provider with root at "%s"', root_dir)
         self.root_dir = os.path.abspath(os.path.expanduser(root_dir))
         self.hasher = Hasher()
+
+    def get_handle(self) -> str:
+        return 'fs-' + hash_dict({
+            'root_dif': self.root_dir,
+        })
 
     def construct_state(self) -> StorageState:
         state = StorageState()

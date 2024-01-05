@@ -37,6 +37,14 @@ class StorageStateDiff:
 
 
 class ProviderBase:
+    def get_handle(self) -> str:
+        """
+        Returns string that identifies provider along with critical parameters like
+        directory for FS provider or other important arguments that identify the
+        storage itself.
+        """
+        raise NotImplementedError
+
     def construct_state(self) -> StorageState:
         raise NotImplementedError
 
@@ -71,15 +79,27 @@ class SyncError(Exception):
 
 # add selective sync
 class Syncer:
-    def __init__(self, src_provider: ProviderBase, dst_provider: ProviderBase):
+    def __init__(self, src_provider: ProviderBase, dst_provider: ProviderBase, state_root_dir: str = '.state'):
         self.src_provider = src_provider
         self.dst_provider = dst_provider
+        self.state_root_dir = os.path.abspath(os.path.expanduser(state_root_dir))
 
-    def open_state_file(self, path: str):
-        if os.path.exists(path):
-            with open(path, 'rb') as f:
+        if not os.path.exists(self.state_root_dir):
+            LOGGER.warning('state dir does not exist -> create')
+            os.makedirs(self.state_root_dir)
+
+    def open_state_file(self, handle: str):
+        abs_path = os.path.join(self.state_root_dir, handle)
+        if os.path.exists(abs_path):
+            with open(abs_path, 'rb') as f:
                 return StorageState.load(f)
+        LOGGER.warning('state file not found')
         return StorageState()
+
+    def save_state_file(self, handle: str, state: StorageState):
+        abs_path = os.path.join(self.state_root_dir, handle)
+        with open(abs_path, 'wb') as f:
+            return state.save(f)
 
     def compare(self, path: str) -> bool:
         LOGGER.debug('comparing "%s" source vs. destination...', path)
@@ -96,8 +116,14 @@ class Syncer:
         return src_file_state.content_hash == dst_file_hash
 
     def sync(self):
-        src_state_snapshot = self.open_state_file('src.state')
-        dst_state_snapshot = self.open_state_file('dst.state')
+        src_provider_handle = self.src_provider.get_handle()
+        dst_provider_handle = self.dst_provider.get_handle()
+
+        LOGGER.debug('source provider handle %s', src_provider_handle)
+        LOGGER.debug('destination provider handle %s', dst_provider_handle)
+
+        src_state_snapshot = self.open_state_file(src_provider_handle)
+        dst_state_snapshot = self.open_state_file(dst_provider_handle)
 
         src_state = self.src_provider.construct_state()
         dst_state = self.dst_provider.construct_state()
@@ -165,7 +191,7 @@ class Syncer:
                 if not are_equal:
                     raise SyncError('Unable to resolve conflict for "%s"' % path)
                 else:
-                    LOGGER.warning(
+                    LOGGER.debug(
                         'resolved conflict for "%s" as files identical', path)
             elif action == SyncAction.NOOP:
                 pass
@@ -174,8 +200,5 @@ class Syncer:
 
         LOGGER.info('saving state')
 
-        with open('src.state', 'wb') as f:
-            src_state.save(f)
-
-        with open('dst.state', 'wb') as f:
-            dst_state.save(f)
+        self.save_state_file(src_provider_handle, src_state)
+        self.save_state_file(dst_provider_handle, dst_state)
