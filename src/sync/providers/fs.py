@@ -16,7 +16,7 @@ class FSProvider(ProviderBase):
     BUFFER_SIZE = 4096
 
     def __init__(self, root_dir: str):
-        LOGGER.info('init FS provider with root at "%s"', root_dir)
+        LOGGER.debug('init FS provider with root at "%s"', root_dir)
         self.root_dir = os.path.abspath(os.path.expanduser(root_dir))
         self.hasher = Hasher()
 
@@ -25,7 +25,7 @@ class FSProvider(ProviderBase):
             'root_dif': self.root_dir,
         })
 
-    def construct_state(self) -> StorageState:
+    def _get_state_impl(self) -> StorageState:
         state = StorageState()
         for parent_dir_name, dir_names, file_names in os.walk(self.root_dir):
             for file_name in file_names:

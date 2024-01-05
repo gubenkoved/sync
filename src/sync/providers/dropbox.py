@@ -24,7 +24,7 @@ class DropboxProvider(ProviderBase):
     def _get_dropbox(self) -> dropbox.Dropbox:
         return dropbox.Dropbox(self.token)
 
-    def construct_state(self) -> StorageState:
+    def _get_state_impl(self) -> StorageState:
         dbx = self._get_dropbox()
 
         files = {}

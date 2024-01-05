@@ -48,6 +48,9 @@ if __name__ == '__main__':
 
     coloredlogs.install(logging.getLevelName(args.log_level))
 
+    # disable too verbose logging
+    logging.getLogger('dropbox').setLevel(logging.WARNING)
+
     source_provider = init_provider(args.source)
     destination_provider = init_provider(args.destination)
 

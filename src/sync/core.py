@@ -4,7 +4,9 @@ from enum import StrEnum
 from typing import Dict, BinaryIO
 from abc import abstractmethod, ABC
 
-from sync.state import FileState, StorageState
+from sync.state import FileState, StorageState, SyncPairState
+from sync.hashing import hash_dict
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +39,16 @@ class StorageStateDiff:
         return StorageStateDiff(changes)
 
 
+IGNORE_FILENAMES = set(x.lower() for x in [
+    '.DS_Store',
+])
+
+
+def should_ignore(path: str):
+    head, filename = os.path.split(path)
+    return filename.lower() in IGNORE_FILENAMES
+
+
 class ProviderBase(ABC):
     @abstractmethod
     def get_handle(self) -> str:
@@ -47,8 +59,18 @@ class ProviderBase(ABC):
         """
         raise NotImplementedError
 
+    def get_state(self):
+        state = self._get_state_impl()
+
+        state.files = {
+            path: state for path, state in state.files.items()
+            if not should_ignore(path)
+        }
+
+        return state
+
     @abstractmethod
-    def construct_state(self) -> StorageState:
+    def _get_state_impl(self) -> StorageState:
         raise NotImplementedError
 
     @abstractmethod
@@ -97,15 +119,30 @@ class Syncer:
             LOGGER.warning('state dir does not exist -> create')
             os.makedirs(self.state_root_dir)
 
-    def open_state_file(self, handle: str):
+    def get_state_handle(self):
+        src_handle = self.src_provider.get_handle()
+        dst_handle = self.dst_provider.get_handle()
+
+        pair_handle = hash_dict({
+            'src': src_handle,
+            'dst': dst_handle,
+        })
+        return pair_handle
+
+    def load_state(self) -> SyncPairState:
+        handle = self.get_state_handle()
         abs_path = os.path.join(self.state_root_dir, handle)
         if os.path.exists(abs_path):
             with open(abs_path, 'rb') as f:
-                return StorageState.load(f)
+                return SyncPairState.load(f)
         LOGGER.warning('state file not found')
-        return StorageState()
+        return SyncPairState(
+            StorageState(),
+            StorageState(),
+        )
 
-    def save_state_file(self, handle: str, state: StorageState):
+    def save_state(self, state: SyncPairState):
+        handle = self.get_state_handle()
         abs_path = os.path.join(self.state_root_dir, handle)
         with open(abs_path, 'wb') as f:
             return state.save(f)
@@ -125,24 +162,20 @@ class Syncer:
         return src_file_state.content_hash == dst_file_hash
 
     def sync(self):
-        src_provider_handle = self.src_provider.get_handle()
-        dst_provider_handle = self.dst_provider.get_handle()
+        pair_state = self.load_state()
 
-        LOGGER.debug('source provider handle %s', src_provider_handle)
-        LOGGER.debug('destination provider handle %s', dst_provider_handle)
+        src_state_snapshot = pair_state.source_state
+        dst_state_snapshot = pair_state.dest_state
 
-        src_state_snapshot = self.open_state_file(src_provider_handle)
-        dst_state_snapshot = self.open_state_file(dst_provider_handle)
-
-        src_state = self.src_provider.construct_state()
-        dst_state = self.dst_provider.construct_state()
+        src_state = self.src_provider.get_state()
+        dst_state = self.dst_provider.get_state()
 
         src_diff = StorageStateDiff.compute(src_state, src_state_snapshot)
         dst_diff = StorageStateDiff.compute(dst_state, dst_state_snapshot)
 
-        LOGGER.info('source changes: %s', {
+        LOGGER.debug('source changes: %s', {
             path: str(diff) for path, diff in src_diff.changes.items()})
-        LOGGER.info('dest changes: %s', {
+        LOGGER.debug('dest changes: %s', {
             path: str(diff) for path, diff in dst_diff.changes.items()})
 
         # some combinations are not possible w/o corrupted state like
@@ -205,7 +238,13 @@ class Syncer:
             else:
                 raise NotImplementedError('action %s' % action)
 
-        LOGGER.info('saving state')
+        action_count = sum(1 for _, action in actions if action != SyncAction.NOOP)
+        if action_count == 0:
+            LOGGER.info('no changes to sync')
 
-        self.save_state_file(src_provider_handle, src_state)
-        self.save_state_file(dst_provider_handle, dst_state)
+        LOGGER.debug('saving state')
+
+        self.save_state(SyncPairState(
+            src_state,
+            dst_state,
+        ))
