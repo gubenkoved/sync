@@ -162,7 +162,7 @@ class Syncer:
 
         return src_file_state.content_hash == dst_file_hash
 
-    def sync(self):
+    def sync(self, dry_run: bool = False):
         pair_state = self.load_state()
 
         src_state_snapshot = pair_state.source_state
@@ -210,9 +210,15 @@ class Syncer:
 
             actions[path] = sync_action
 
-        # running sync actions
+        if dry_run:
+            LOGGER.warning('dry run mode!')
+
         for path, action in actions.items():
             LOGGER.info('%s %s', action, path)
+
+            if dry_run:
+                continue
+
             if action == SyncAction.UPLOAD:
                 stream = self.src_provider.read(path)
                 self.dst_provider.write(path, stream)
@@ -247,9 +253,9 @@ class Syncer:
         else:
             LOGGER.info('no changes to sync')
 
-        LOGGER.debug('saving state')
-
-        self.save_state(SyncPairState(
-            src_state,
-            dst_state,
-        ))
+        if not dry_run:
+            LOGGER.debug('saving state')
+            self.save_state(SyncPairState(
+                src_state,
+                dst_state,
+            ))

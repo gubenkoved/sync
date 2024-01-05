@@ -13,12 +13,14 @@ import logging
 LOGGER = logging.getLogger('cli')
 
 
-def main(source_provider: ProviderBase, destination_provider: ProviderBase):
+def main(source_provider: ProviderBase,
+         destination_provider: ProviderBase,
+         dry_run: bool = False):
     syncer = Syncer(
         source_provider,
         destination_provider,
     )
-    syncer.sync()
+    syncer.sync(dry_run=dry_run)
 
 
 def init_provider(arg_list):
@@ -43,6 +45,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-s', '--source', nargs='+', required=True)
     parser.add_argument('-d', '--destination', nargs='+', required=True)
+    parser.add_argument('--dry-run', action='store_true', required=False, default=False)
 
     args = parser.parse_args()
 
@@ -58,6 +61,7 @@ if __name__ == '__main__':
         main(
             source_provider,
             destination_provider,
+            dry_run=args.dry_run,
         )
     except Exception as err:
         LOGGER.fatal('error: %s', err, exc_info=True)
