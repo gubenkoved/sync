@@ -14,4 +14,7 @@ if __name__ == '__main__':
         packages=find_namespace_packages(where='src'),
         package_dir={'': 'src'},
         install_requires=requirements,
+        entry_points={
+            'console_scripts': ['egsync=sync.cli:entrypoint'],
+        }
     )

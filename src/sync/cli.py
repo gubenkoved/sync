@@ -37,7 +37,7 @@ def init_provider(arg_list):
         raise NotImplementedError
 
 
-if __name__ == '__main__':
+def entrypoint():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--log-level', type=str, required=False, default='INFO',
@@ -66,3 +66,7 @@ if __name__ == '__main__':
     except Exception as err:
         LOGGER.fatal('error: %s', err, exc_info=True)
         sys.exit(1)
+
+
+if __name__ == '__main__':
+    entrypoint()
