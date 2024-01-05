@@ -27,9 +27,11 @@ def init_provider(arg_list):
     provider_type = arg_list[0]
 
     if provider_type == 'FS':
+        assert len(arg_list) == 'expected DIR'
         root_dir = arg_list[1]
         return FSProvider(root_dir)
     elif provider_type == 'D':
+        assert len(arg_list) == 3, 'expected TOKEN DIR'
         token = arg_list[1]
         root_dir = arg_list[2]
         return DropboxProvider(token, root_dir)
