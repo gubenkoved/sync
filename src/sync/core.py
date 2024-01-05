@@ -2,6 +2,7 @@ import logging
 import os.path
 from enum import StrEnum
 from typing import Dict, BinaryIO
+from abc import abstractmethod, ABC
 
 from sync.state import FileState, StorageState
 
@@ -36,7 +37,8 @@ class StorageStateDiff:
         return StorageStateDiff(changes)
 
 
-class ProviderBase:
+class ProviderBase(ABC):
+    @abstractmethod
     def get_handle(self) -> str:
         """
         Returns string that identifies provider along with critical parameters like
@@ -45,21 +47,27 @@ class ProviderBase:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def construct_state(self) -> StorageState:
         raise NotImplementedError
 
+    @abstractmethod
     def get_file_state(self, path: str) -> FileState:
         raise NotImplementedError
 
+    @abstractmethod
     def read(self, path: str) -> BinaryIO:
         raise NotImplementedError
 
+    @abstractmethod
     def write(self, path: str, content: BinaryIO) -> None:
         raise NotImplementedError
 
+    @abstractmethod
     def remove(self, path: str) -> None:
         raise NotImplementedError
 
+    @abstractmethod
     def compute_content_hash(self, content: BinaryIO) -> str:
         raise NotImplementedError
 
@@ -77,7 +85,8 @@ class SyncError(Exception):
     pass
 
 
-# add selective sync
+# TODO: add selective sync
+# TODO: detect MOVEMENT via DELETE/ADD pair for the file with same content hash
 class Syncer:
     def __init__(self, src_provider: ProviderBase, dst_provider: ProviderBase, state_root_dir: str = '.state'):
         self.src_provider = src_provider

@@ -5,6 +5,7 @@ import argparse
 
 from sync.core import Syncer, ProviderBase
 from sync.providers.fs import FSProvider
+from sync.providers.dropbox import DropboxProvider
 import coloredlogs
 import logging
 
@@ -27,7 +28,9 @@ def init_provider(arg_list):
         root_dir = arg_list[1]
         return FSProvider(root_dir)
     elif provider_type == 'D':
-        raise NotImplementedError
+        token = arg_list[1]
+        root_dir = arg_list[2]
+        return DropboxProvider(token, root_dir)
     else:
         raise NotImplementedError
 

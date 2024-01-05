@@ -2,6 +2,8 @@ from typing import BinaryIO, Dict
 import pickle
 
 
+# TODO: add sync pair state
+
 class FileState:
     def __init__(self, content_hash: str):
         self.content_hash = content_hash
@@ -11,8 +13,8 @@ class FileState:
 
 
 class StorageState:
-    def __init__(self):
-        self.files: Dict[str, FileState] = {}
+    def __init__(self, files: Dict[str, FileState] = None):
+        self.files: Dict[str, FileState] = files or {}
 
     def save(self, f: BinaryIO):
         pickle.dump(self, f)
