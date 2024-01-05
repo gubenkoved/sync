@@ -1,8 +1,11 @@
+import logging
 import os.path
 from typing import BinaryIO
 
 from sync.core import ProviderBase, StorageState, FileState
 from sync.hashing import Hasher
+
+LOGGER = logging.getLogger(__name__)
 
 
 class FSProvider(ProviderBase):
@@ -23,7 +26,14 @@ class FSProvider(ProviderBase):
                 )
         return state
 
+    def get_file_state(self, path: str):
+        abs_path = os.path.join(self.root_dir, path)
+        return FileState(
+            content_hash=self._file_hash(abs_path)
+        )
+
     def _file_hash(self, path):
+        LOGGER.debug('compute hash for "%s"', path)
         abs_path = os.path.join(self.root_dir, path)
         with open(abs_path, 'rb') as f:
             return self.hasher.compute(f)
@@ -45,3 +55,6 @@ class FSProvider(ProviderBase):
     def remove(self, path: str):
         abs_path = os.path.join(self.root_dir, path)
         os.unlink(abs_path)
+
+    def compute_content_hash(self, content: BinaryIO) -> str:
+        return self.hasher.compute(content)
