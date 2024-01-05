@@ -3,6 +3,7 @@ import os.path
 from enum import StrEnum
 from typing import Dict, BinaryIO
 from abc import abstractmethod, ABC
+from collections import Counter
 
 from sync.state import FileState, StorageState, SyncPairState
 from sync.hashing import hash_dict
@@ -238,8 +239,12 @@ class Syncer:
             else:
                 raise NotImplementedError('action %s' % action)
 
-        action_count = sum(1 for _, action in actions if action != SyncAction.NOOP)
-        if action_count == 0:
+        action_count = sum(1 for _, action in actions.items() if action != SyncAction.NOOP)
+
+        if action_count > 0:
+            counter = Counter(action for action in actions.values() if action != SyncAction.NOOP)
+            LOGGER.info('STATS: ' + ','.join('%s: %s' % (action, count) for action, count in counter.most_common()))
+        else:
             LOGGER.info('no changes to sync')
 
         LOGGER.debug('saving state')
