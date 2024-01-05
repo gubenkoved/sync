@@ -1,3 +1,6 @@
 .idea
 venv
 *.egg-info
+.state
+build
+dist
