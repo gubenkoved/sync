@@ -3,6 +3,7 @@
 import sys
 import argparse
 
+from typing import List
 from sync.core import Syncer, ProviderBase
 from sync.providers.fs import FSProvider
 from sync.providers.dropbox import DropboxProvider
@@ -25,20 +26,41 @@ def main(source_provider: ProviderBase,
     syncer.sync(dry_run=dry_run)
 
 
-def init_provider(arg_list):
-    provider_type = arg_list[0]
+# TODO: support positional args as well?
+def parse_args(args: List[str]):
+    result = {}
+    for arg in args:
+        k, v = arg.split('=', maxsplit=1)
+        assert k not in result
+        result[k] = v
+    return result
+
+
+def init_provider(args: List[str]):
+    provider_type = args[0]
+    provider_args = parse_args(args[1:])
+
+    def get(param: str, required=True):
+        if required and param not in provider_args:
+            raise Exception('expected %s for %s provider' % (param, provider_type))
+        return provider_args.pop(param, None)
 
     if provider_type == 'FS':
-        assert len(arg_list) == 2, 'expected format: <DIR>, actual: %s' % arg_list[1:]
-        root_dir = arg_list[1]
-        return FSProvider(root_dir)
+        provider = FSProvider(
+            root_dir=get('root')
+        )
     elif provider_type == 'D':
-        assert len(arg_list) == 3, 'expected format: <TOKEN> <DIR>, actual: %s' % arg_list[1:]
-        token = arg_list[1]
-        root_dir = arg_list[2]
-        return DropboxProvider(token, root_dir)
+        provider = DropboxProvider(
+            token=get('token'),
+            root_dir=get('root'),
+        )
     else:
         raise NotImplementedError
+
+    if provider_args:
+        raise Exception('unrecognized parameters: %s' % provider_args.keys())
+
+    return provider
 
 
 def entrypoint():
