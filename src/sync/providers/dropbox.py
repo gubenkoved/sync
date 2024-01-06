@@ -10,6 +10,7 @@ import dropbox
 from dropbox.files import FileMetadata, WriteMode
 
 
+# TODO: add support for refresh tokens
 class DropboxProvider(ProviderBase):
     def __init__(self, token: str, root_dir: str):
         self.token = token
