@@ -145,6 +145,7 @@ class Syncer:
         handle = self.get_state_handle()
         abs_path = os.path.join(self.state_root_dir, handle)
         if os.path.exists(abs_path):
+            LOGGER.debug('loading state from "%s"', abs_path)
             with open(abs_path, 'rb') as f:
                 return SyncPairState.load(f)
         LOGGER.warning('state file not found')
