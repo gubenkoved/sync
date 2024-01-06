@@ -14,6 +14,9 @@ class StorageState:
     def __init__(self, files: Dict[str, FileState] = None):
         self.files: Dict[str, FileState] = files or {}
 
+    def __repr__(self):
+        return '<StorageState %s files>' % len(self.files)
+
 
 class SyncPairState:
     def __init__(self, source_state: StorageState, dest_state: StorageState):
