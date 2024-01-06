@@ -15,10 +15,12 @@ LOGGER = logging.getLogger('cli')
 
 def main(source_provider: ProviderBase,
          destination_provider: ProviderBase,
-         dry_run: bool = False):
+         dry_run: bool = False,
+         filter: str = None):
     syncer = Syncer(
         source_provider,
         destination_provider,
+        filter=filter,
     )
     syncer.sync(dry_run=dry_run)
 
@@ -27,11 +29,11 @@ def init_provider(arg_list):
     provider_type = arg_list[0]
 
     if provider_type == 'FS':
-        assert len(arg_list) == 'expected DIR'
+        assert len(arg_list) == 2, 'expected format: <DIR>, actual: %s' % arg_list[1:]
         root_dir = arg_list[1]
         return FSProvider(root_dir)
     elif provider_type == 'D':
-        assert len(arg_list) == 3, 'expected TOKEN DIR'
+        assert len(arg_list) == 3, 'expected format: <TOKEN> <DIR>, actual: %s' % arg_list[1:]
         token = arg_list[1]
         root_dir = arg_list[2]
         return DropboxProvider(token, root_dir)
@@ -48,6 +50,7 @@ def entrypoint():
     parser.add_argument('-s', '--source', nargs='+', required=True)
     parser.add_argument('-d', '--destination', nargs='+', required=True)
     parser.add_argument('--dry-run', action='store_true', required=False, default=False)
+    parser.add_argument('--filter', type=str, default=None, required=False)
 
     args = parser.parse_args()
 
@@ -64,6 +67,7 @@ def entrypoint():
             source_provider,
             destination_provider,
             dry_run=args.dry_run,
+            filter=args.filter,
         )
     except Exception as err:
         LOGGER.fatal('error: %s', err, exc_info=True)

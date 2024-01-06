@@ -2,7 +2,7 @@ import logging
 import os.path
 from typing import BinaryIO
 
-from sync.core import ProviderBase, StorageState, FileState
+from sync.core import ProviderBase, StorageState, FileState, SyncError
 from sync.hashing import Hasher, hash_dict
 
 LOGGER = logging.getLogger(__name__)
@@ -20,12 +20,15 @@ class FSProvider(ProviderBase):
         self.root_dir = os.path.abspath(os.path.expanduser(root_dir))
         self.hasher = Hasher()
 
+        if not os.path.exists(self.root_dir):
+            raise SyncError('root directory "%s" does not exist' % self.root_dir)
+
     def get_handle(self) -> str:
         return 'fs-' + hash_dict({
             'root_dif': self.root_dir,
         })
 
-    def _get_state_impl(self) -> StorageState:
+    def get_state(self) -> StorageState:
         state = StorageState()
         for parent_dir_name, dir_names, file_names in os.walk(self.root_dir):
             for file_name in file_names:

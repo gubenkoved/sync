@@ -7,7 +7,7 @@ from sync.state import FileState, StorageState
 from sync.hashing import hash_dict
 
 import dropbox
-from dropbox.files import FileMetadata
+from dropbox.files import FileMetadata, WriteMode
 
 
 class DropboxProvider(ProviderBase):
@@ -24,7 +24,7 @@ class DropboxProvider(ProviderBase):
     def _get_dropbox(self) -> dropbox.Dropbox:
         return dropbox.Dropbox(self.token)
 
-    def _get_state_impl(self) -> StorageState:
+    def get_state(self) -> StorageState:
         dbx = self._get_dropbox()
 
         files = {}
@@ -68,11 +68,12 @@ class DropboxProvider(ProviderBase):
 
         return io.BytesIO(response.content)
 
+    # TODO: use "update" method that checks file revision to avoid lost update
     def write(self, path: str, content: BinaryIO) -> None:
         dbx = self._get_dropbox()
         full_path = os.path.join(self.root_dir, path)
         file_bytes = content.read()
-        dbx.files_upload(file_bytes, full_path)
+        dbx.files_upload(file_bytes, full_path, mode=WriteMode.overwrite)
 
     def remove(self, path: str) -> None:
         dbx = self._get_dropbox()

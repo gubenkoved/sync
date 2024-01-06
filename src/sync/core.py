@@ -1,13 +1,13 @@
 import logging
 import os.path
-from enum import StrEnum
-from typing import Dict, BinaryIO
+import re
 from abc import abstractmethod, ABC
 from collections import Counter
+from enum import StrEnum
+from typing import Dict, BinaryIO, Optional, Callable
 
-from sync.state import FileState, StorageState, SyncPairState
 from sync.hashing import hash_dict
-
+from sync.state import FileState, StorageState, SyncPairState
 
 LOGGER = logging.getLogger(__name__)
 
@@ -60,18 +60,8 @@ class ProviderBase(ABC):
         """
         raise NotImplementedError
 
-    def get_state(self):
-        state = self._get_state_impl()
-
-        state.files = {
-            path: state for path, state in state.files.items()
-            if not should_ignore(path)
-        }
-
-        return state
-
     @abstractmethod
-    def _get_state_impl(self) -> StorageState:
+    def get_state(self) -> StorageState:
         raise NotImplementedError
 
     @abstractmethod
@@ -108,13 +98,33 @@ class SyncError(Exception):
     pass
 
 
+def filter_state(state: StorageState, is_match: Callable[[str], bool]):
+    return StorageState(files={
+        path: state for path, state in state.files.items() if is_match(path)
+    })
+
+
+def make_regex_matcher(pattern: str) -> Callable[[str], bool]:
+    regex = re.compile(pattern, re.IGNORECASE)
+
+    def matcher(path: str):
+        return bool(regex.match(path))
+
+    return matcher
+
+
 # TODO: add selective sync
 # TODO: detect MOVEMENT via DELETE/ADD pair for the file with same content hash
 class Syncer:
-    def __init__(self, src_provider: ProviderBase, dst_provider: ProviderBase, state_root_dir: str = '.state'):
+    def __init__(self,
+                 src_provider: ProviderBase,
+                 dst_provider: ProviderBase,
+                 state_root_dir: str = '.state',
+                 filter: Optional[str] = None):
         self.src_provider = src_provider
         self.dst_provider = dst_provider
         self.state_root_dir = os.path.abspath(os.path.expanduser(state_root_dir))
+        self.filter = filter
 
         if not os.path.exists(self.state_root_dir):
             LOGGER.warning('state dir does not exist -> create')
@@ -127,6 +137,7 @@ class Syncer:
         pair_handle = hash_dict({
             'src': src_handle,
             'dst': dst_handle,
+            'filter': self.filter or '',
         })
         return pair_handle
 
@@ -170,6 +181,18 @@ class Syncer:
 
         src_state = self.src_provider.get_state()
         dst_state = self.dst_provider.get_state()
+
+        # get rid of ignored files
+        def not_ignored_matcher(path):
+            return not should_ignore(path)
+
+        src_state = filter_state(src_state, not_ignored_matcher)
+        dst_state = filter_state(dst_state, not_ignored_matcher)
+
+        if self.filter:
+            filter_matcher = make_regex_matcher(self.filter)
+            src_state = filter_state(src_state, filter_matcher)
+            dst_state = filter_state(dst_state, filter_matcher)
 
         src_diff = StorageStateDiff.compute(src_state, src_state_snapshot)
         dst_diff = StorageStateDiff.compute(dst_state, dst_state_snapshot)
