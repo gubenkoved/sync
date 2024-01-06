@@ -30,6 +30,7 @@ class FSProvider(ProviderBase):
 
     def get_state(self) -> StorageState:
         state = StorageState()
+        LOGGER.debug('walking "%s"...', self.root_dir)
         for parent_dir_name, dir_names, file_names in os.walk(self.root_dir):
             for file_name in file_names:
                 abs_path = os.path.join(parent_dir_name, file_name)
@@ -37,6 +38,7 @@ class FSProvider(ProviderBase):
                 state.files[rel_path] = FileState(
                     content_hash=self._file_hash(abs_path)
                 )
+        LOGGER.debug('discovered %d files', len(state.files))
         return state
 
     def get_file_state(self, path: str):
