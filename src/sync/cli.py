@@ -1,15 +1,16 @@
 #! /usr/bin/env python
 
-import sys
 import argparse
-
-from typing import List
-from sync.core import Syncer, ProviderBase
-from sync.providers.fs import FSProvider
-from sync.providers.dropbox import DropboxProvider
-import coloredlogs
 import logging
+import sys
+from typing import List
 
+import coloredlogs
+
+from sync.core import Syncer, ProviderBase
+from sync.providers.dropbox import DropboxProvider
+from sync.providers.fs import FSProvider
+from sync.providers.sftp import STFPProvider
 
 LOGGER = logging.getLogger('cli')
 
@@ -54,8 +55,17 @@ def init_provider(args: List[str]):
             token=get('token'),
             root_dir=get('root'),
         )
+    elif provider_type == 'SFTP':
+        provider = STFPProvider(
+            host=get('host'),
+            username=get('user'),
+            root_dir=get('root'),
+            key_path=get('key', required=False),
+            password=get('pass', required=False),
+            port=int(get('port', required=False) or 22),
+        )
     else:
-        raise NotImplementedError
+        raise Exception('unknown provider: "%s"' % provider_type)
 
     if provider_args:
         raise Exception('unrecognized parameters: %s' % provider_args.keys())
@@ -80,6 +90,7 @@ def entrypoint():
 
     # disable too verbose logging
     logging.getLogger('dropbox').setLevel(logging.WARNING)
+    logging.getLogger('paramiko').setLevel(logging.WARNING)
 
     source_provider = init_provider(args.source)
     destination_provider = init_provider(args.destination)
