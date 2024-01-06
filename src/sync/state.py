@@ -2,6 +2,8 @@ import pickle
 from typing import BinaryIO, Dict
 
 
+# TODO: add more metadata like creation and last update time, also file size
+# TODO: add "revision" marker for optimistic concurrency
 class FileState:
     def __init__(self, content_hash: str):
         self.content_hash = content_hash
