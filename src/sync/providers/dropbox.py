@@ -1,5 +1,5 @@
 import os.path
-from typing import BinaryIO
+from typing import BinaryIO, Optional
 import io
 
 from sync.core import ProviderBase
@@ -10,20 +10,34 @@ import dropbox
 from dropbox.files import FileMetadata, WriteMode
 
 
-# TODO: add support for refresh tokens
 class DropboxProvider(ProviderBase):
-    def __init__(self, token: str, root_dir: str):
-        self.token = token
+    def __init__(self, account_id: str, token: str, root_dir: str,
+                 is_refresh_token=False, app_key: Optional[str] = None,
+                 app_secret: Optional[str] = None):
+        self.account_id = account_id
         self.root_dir = root_dir
+        self.token = token
+        self.is_refresh_token = is_refresh_token
+        self.app_key = app_key
+        self.app_secret = app_secret
 
     def get_handle(self) -> str:
         return 'd-' + hash_dict({
-            'token': self.token,
+            'account_id': self.account_id,
             'root_dir': self.root_dir,
         })
 
     def _get_dropbox(self) -> dropbox.Dropbox:
-        return dropbox.Dropbox(self.token)
+        if not self.is_refresh_token:
+            return dropbox.Dropbox(
+                oauth2_access_token=self.token
+            )
+        else:
+            return dropbox.Dropbox(
+                oauth2_refresh_token=self.token,
+                app_key=self.app_key,
+                app_secret=self.app_secret,
+            )
 
     def get_state(self) -> StorageState:
         dbx = self._get_dropbox()

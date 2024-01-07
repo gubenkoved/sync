@@ -51,9 +51,28 @@ def init_provider(args: List[str]):
             root_dir=get('root')
         )
     elif provider_type == 'D':
+        account_id = get('id')
+        access_token = get('access_token', required=False)
+        refresh_token = get('refresh_token', required=False)
+
+        if access_token:
+            dropbox_args = dict(
+                token=access_token,
+            )
+        elif refresh_token:
+            dropbox_args = dict(
+                token=refresh_token,
+                app_key=get('app_key'),
+                app_secret=get('app_secret'),
+                is_refresh_token=True,
+            )
+        else:
+            raise Exception('unknown token type')
+
         provider = DropboxProvider(
-            token=get('token'),
+            account_id=account_id,
             root_dir=get('root'),
+            **dropbox_args,
         )
     elif provider_type == 'SFTP':
         provider = STFPProvider(
