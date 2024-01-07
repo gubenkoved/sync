@@ -276,6 +276,12 @@ class Syncer:
             elif action == SyncAction.RESOLVE_CONFLICT:
                 are_equal = self.compare(path)
                 if not are_equal:
+                    # TODO: conflict should not fully stop the sync process, we
+                    #  need to process other files and report the sync issues at
+                    #  the end; in the state files with conflicts should be
+                    #  marked accordingly or probably should not be included into
+                    #  set of files, so that they are considered "added" on both
+                    #  ends and conflict resolution repeats
                     raise SyncError('Unable to resolve conflict for "%s"' % path)
                 else:
                     LOGGER.debug(
