@@ -1,16 +1,18 @@
 import os.path
-from typing import BinaryIO, Optional
+from typing import BinaryIO, Optional, List
 import io
 
 from sync.core import ProviderBase
 from sync.state import FileState, StorageState
-from sync.hashing import hash_dict
+from sync.hashing import hash_dict, HashType
 
 import dropbox
 from dropbox.files import FileMetadata, WriteMode
 
 
 class DropboxProvider(ProviderBase):
+    SUPPORTED_HASH_TYPES = [HashType.DROPBOX_SHA256]
+
     def __init__(self, account_id: str, token: str, root_dir: str,
                  is_refresh_token=False, app_key: Optional[str] = None,
                  app_secret: Optional[str] = None):
@@ -38,6 +40,9 @@ class DropboxProvider(ProviderBase):
                 app_key=self.app_key,
                 app_secret=self.app_secret,
             )
+
+    def _get_full_path(self, path: str):
+        return os.path.join(self.root_dir, path)
 
     def get_state(self) -> StorageState:
         dbx = self._get_dropbox()
@@ -67,7 +72,7 @@ class DropboxProvider(ProviderBase):
     def get_file_state(self, path: str) -> FileState:
         dbx = self._get_dropbox()
 
-        full_path = os.path.join(self.root_dir, path)
+        full_path = self._get_full_path(path)
         result = dbx.files_get_metadata(full_path)
         assert isinstance(result, FileMetadata)
 
@@ -78,7 +83,7 @@ class DropboxProvider(ProviderBase):
     def read(self, path: str) -> BinaryIO:
         dbx = self._get_dropbox()
 
-        full_path = os.path.join(self.root_dir, path)
+        full_path = self._get_full_path(path)
         metadata, response = dbx.files_download(full_path)
 
         return io.BytesIO(response.content)
@@ -86,14 +91,20 @@ class DropboxProvider(ProviderBase):
     # TODO: use "update" method that checks file revision to avoid lost update
     def write(self, path: str, content: BinaryIO) -> None:
         dbx = self._get_dropbox()
-        full_path = os.path.join(self.root_dir, path)
+        full_path = self._get_full_path(path)
         file_bytes = content.read()
         dbx.files_upload(file_bytes, full_path, mode=WriteMode.overwrite)
 
     def remove(self, path: str) -> None:
         dbx = self._get_dropbox()
-        full_path = os.path.join(self.root_dir, path)
+        full_path = self._get_full_path(path)
         dbx.files_delete_v2(full_path)
 
-    def compute_content_hash(self, content: BinaryIO) -> str:
-        raise NotImplementedError
+    def supported_hash_types(self) -> List[HashType]:
+        return self.SUPPORTED_HASH_TYPES
+
+    def compute_hash(self, path: str, hash_type: HashType) -> str:
+        dbx = self._get_dropbox()
+        full_path = self._get_full_path(path)
+        result = dbx.files_get_metadata(full_path)
+        return result.content_hash

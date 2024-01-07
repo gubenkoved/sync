@@ -4,10 +4,11 @@ import re
 from abc import abstractmethod, ABC
 from collections import Counter
 from enum import StrEnum
-from typing import Dict, BinaryIO, Optional, Callable
+from typing import Dict, BinaryIO, Optional, Callable, List
 
-from sync.hashing import hash_dict
+from sync.hashing import hash_dict, hash_stream, HashType
 from sync.state import FileState, StorageState, SyncPairState
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -80,8 +81,11 @@ class ProviderBase(ABC):
     def remove(self, path: str) -> None:
         raise NotImplementedError
 
+    def supported_hash_types(self) -> List[HashType]:
+        return []
+
     @abstractmethod
-    def compute_content_hash(self, content: BinaryIO) -> str:
+    def compute_hash(self, path: str, hash_type: HashType) -> str:
         raise NotImplementedError
 
 
@@ -163,16 +167,26 @@ class Syncer:
     def compare(self, path: str) -> bool:
         LOGGER.debug('comparing "%s" source vs. destination...', path)
 
-        src_file_state = self.src_provider.get_file_state(path)
+        # see if we can compare hashses "remotely"
+        shared_hash_types = (
+            set(self.src_provider.supported_hash_types()) &
+            set(self.dst_provider.supported_hash_types()))
 
-        with self.dst_provider.read(path) as dst_file_stream:
-            dst_file_hash = self.src_provider.compute_content_hash(dst_file_stream)
+        if shared_hash_types:
+            LOGGER.debug('found hashes supported by both providers: %s', shared_hash_types)
+            hash_type = list(shared_hash_types)[0]
+            src_hash = self.src_provider.compute_hash(path, hash_type)
+            dst_hash = self.dst_provider.compute_hash(path, hash_type)
+        else:  # download and compute locally
+            LOGGER.debug('no shared hashes, compare locally: %s', shared_hash_types)
+            src_hash = hash_stream(self.src_provider.read(path))
+            dst_hash = hash_stream(self.dst_provider.read(path))
 
         LOGGER.debug(
             'source hash "%s", destination hash "%s"',
-            src_file_state.content_hash, dst_file_hash)
+            src_hash, dst_hash)
 
-        return src_file_state.content_hash == dst_file_hash
+        return src_hash == dst_hash
 
     def sync(self, dry_run: bool = False):
         pair_state = self.load_state()

@@ -1,12 +1,12 @@
 import io
 import os.path
-from typing import BinaryIO, Optional, Tuple
+from typing import BinaryIO, Optional, Tuple, List
 from stat import S_ISDIR, S_ISREG
 
 import paramiko
 
 from sync.core import ProviderBase
-from sync.hashing import hash_dict
+from sync.hashing import hash_dict, HashType
 from sync.state import FileState, StorageState
 
 
@@ -121,6 +121,8 @@ class STFPProvider(ProviderBase):
         with ssh, sftp:
             sftp.remove(full_path)
 
-    def compute_content_hash(self, content: BinaryIO) -> str:
-        raise NotImplementedError
+    def supported_hash_types(self) -> List[HashType]:
+        return []
 
+    def compute_hash(self, path: str, hash_type: HashType) -> str:
+        raise Exception('not supported')

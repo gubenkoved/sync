@@ -3,24 +3,29 @@ import json
 import logging
 from hashlib import sha256
 from typing import BinaryIO, Dict
+from enum import StrEnum
 
 
 LOGGER = logging.getLogger(__name__)
 
 
-def sha256_stream(stream: BinaryIO, buffer_size: int = 1024) -> bytes:
+class HashType(StrEnum):
+    DROPBOX_SHA256 = 'DROPBOX_SHA256'
+    SHA256 = 'SHA256'
+
+
+def sha256_stream(stream: BinaryIO, buffer_size: int = 1024) -> str:
     sha = sha256()
     while True:
         buffer = stream.read(buffer_size)
         if not buffer:
             break
         sha.update(buffer)
-    return sha.digest()
+    return sha.hexdigest()
 
 
 def hash_stream(stream: BinaryIO) -> str:
-    hash_bytes = sha256_stream(stream)
-    return hash_bytes.hex()
+    return sha256_stream(stream)
 
 
 def hash_dict(data: Dict[str, str]) -> str:
@@ -40,8 +45,9 @@ def dropbox_hash_stream(stream: BinaryIO) -> str:
             if not block:
                 break
             with io.BytesIO(block) as block_stream:
-                block_hash = sha256_stream(block_stream)
-                hash_buffer.write(block_hash)
+                block_hash_bytes = bytes.fromhex(sha256_stream(block_stream))
+                hash_buffer.write(block_hash_bytes)
         hash_buffer.seek(0)
         result_hash = sha256_stream(hash_buffer)
-        return result_hash.hex()
+        return result_hash
+

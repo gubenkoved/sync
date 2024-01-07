@@ -1,9 +1,12 @@
 import logging
 import os.path
-from typing import BinaryIO
+from typing import BinaryIO, List
 
 from sync.core import ProviderBase, StorageState, FileState, SyncError
-from sync.hashing import hash_stream, hash_dict
+from sync.hashing import (
+    hash_stream, hash_dict, HashType,
+    sha256_stream, dropbox_hash_stream,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -14,6 +17,7 @@ LOGGER = logging.getLogger(__name__)
 # TODO: handle empty directories? git does not handle that...
 class FSProvider(ProviderBase):
     BUFFER_SIZE = 4096
+    SUPPORTED_HASH_TYPES = [HashType.SHA256, HashType.DROPBOX_SHA256]
 
     def __init__(self, root_dir: str):
         LOGGER.debug('init FS provider with root at "%s"', root_dir)
@@ -75,5 +79,17 @@ class FSProvider(ProviderBase):
         abs_path = os.path.join(self.root_dir, path)
         os.unlink(abs_path)
 
-    def compute_content_hash(self, content: BinaryIO) -> str:
-        return hash_stream(content)
+    def supported_hash_types(self) -> List[HashType]:
+        return self.SUPPORTED_HASH_TYPES
+
+    def compute_hash(self, path: str, hash_type: HashType) -> str:
+        assert hash_type in self.SUPPORTED_HASH_TYPES
+
+        abs_path = os.path.join(self.root_dir, path)
+        with open(abs_path, 'rb') as f:
+            if hash_type == HashType.SHA256:
+                return sha256_stream(f)
+            elif hash_type == HashType.DROPBOX_SHA256:
+                return dropbox_hash_stream(f)
+            else:
+                raise NotImplementedError
