@@ -4,23 +4,23 @@ import logging
 from hashlib import sha256
 from typing import BinaryIO, Dict
 
+
 LOGGER = logging.getLogger(__name__)
 
 
-class Hasher:
-    BUFFER_SIZE = 4096
-
-    def compute(self, stream: BinaryIO) -> str:
-        sha = sha256()
-        while True:
-            buffer = stream.read(self.BUFFER_SIZE)
-            if not buffer:
-                break
-            sha.update(buffer)
-        return sha.hexdigest()
+def sha256_stream(stream: BinaryIO, buffer_size: int = 1024) -> bytes:
+    sha = sha256()
+    while True:
+        buffer = stream.read(buffer_size)
+        if not buffer:
+            break
+        sha.update(buffer)
+    return sha.digest()
 
 
-HASHER = Hasher()
+def hash_stream(stream: BinaryIO) -> str:
+    hash_bytes = sha256_stream(stream)
+    return hash_bytes.hex()
 
 
 def hash_dict(data: Dict[str, str]) -> str:
@@ -30,4 +30,4 @@ def hash_dict(data: Dict[str, str]) -> str:
             json.dump(data, f, sort_keys=True)
             f.flush()
             buffer.seek(0)
-            return HASHER.compute(buffer)
+            return hash_stream(buffer)

@@ -3,7 +3,7 @@ import os.path
 from typing import BinaryIO
 
 from sync.core import ProviderBase, StorageState, FileState, SyncError
-from sync.hashing import Hasher, hash_dict
+from sync.hashing import hash_stream, hash_dict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -18,7 +18,6 @@ class FSProvider(ProviderBase):
     def __init__(self, root_dir: str):
         LOGGER.debug('init FS provider with root at "%s"', root_dir)
         self.root_dir = os.path.abspath(os.path.expanduser(root_dir))
-        self.hasher = Hasher()
 
         if not os.path.exists(self.root_dir):
             raise SyncError('root directory "%s" does not exist' % self.root_dir)
@@ -51,7 +50,7 @@ class FSProvider(ProviderBase):
         LOGGER.debug('compute hash for "%s"', path)
         abs_path = os.path.join(self.root_dir, path)
         with open(abs_path, 'rb') as f:
-            return self.hasher.compute(f)
+            return hash_stream(f)
 
     def read(self, path: str) -> BinaryIO:
         abs_path = os.path.join(self.root_dir, path)
@@ -77,4 +76,4 @@ class FSProvider(ProviderBase):
         os.unlink(abs_path)
 
     def compute_content_hash(self, content: BinaryIO) -> str:
-        return self.hasher.compute(content)
+        return hash_stream(content)
