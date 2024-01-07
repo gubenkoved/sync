@@ -15,6 +15,9 @@ from sync.providers.sftp import STFPProvider
 LOGGER = logging.getLogger('cli')
 
 
+# TODO: filter as glob expression back + add ability to limit depth instead to
+#  be able to implement sync cases where we want couple of files in the root of
+#  some dir with a lot of children
 def main(source_provider: ProviderBase,
          destination_provider: ProviderBase,
          dry_run: bool = False,
