@@ -1,6 +1,6 @@
 import logging
 import os.path
-from typing import BinaryIO, List
+from typing import BinaryIO, List, Optional
 
 from sync.core import ProviderBase, StorageState, FileState, SyncError
 from sync.hashing import (
@@ -19,9 +19,14 @@ class FSProvider(ProviderBase):
     BUFFER_SIZE = 4096
     SUPPORTED_HASH_TYPES = [HashType.SHA256, HashType.DROPBOX_SHA256]
 
-    def __init__(self, root_dir: str):
+    def __init__(self, root_dir: str, depth: Optional[int] = None):
+        if depth is not None:
+            if depth <= 0:
+                raise ValueError('invalid dept value')
+
         LOGGER.debug('init FS provider with root at "%s"', root_dir)
         self.root_dir = os.path.abspath(os.path.expanduser(root_dir))
+        self.depth = depth
 
         if not os.path.exists(self.root_dir):
             raise SyncError('root directory "%s" does not exist' % self.root_dir)
@@ -29,20 +34,32 @@ class FSProvider(ProviderBase):
     def get_handle(self) -> str:
         return 'fs-' + hash_dict({
             'root_dif': self.root_dir,
+            'depth': str(self.depth or -1),
         })
 
     def get_state(self) -> StorageState:
-        state = StorageState()
-        LOGGER.debug('walking "%s"...', self.root_dir)
-        for parent_dir_name, dir_names, file_names in os.walk(self.root_dir):
-            for file_name in file_names:
-                abs_path = os.path.join(parent_dir_name, file_name)
-                rel_path = os.path.relpath(abs_path, self.root_dir)
-                state.files[rel_path] = FileState(
-                    content_hash=self._file_hash(abs_path)
-                )
-        LOGGER.debug('discovered %d files', len(state.files))
-        return state
+        files = {}
+
+        def walk(dir_path: str, level: int):
+            LOGGER.debug('walking "%s"...', dir_path)
+
+            if self.depth is not None and level > self.depth:
+                return
+
+            for entry in os.scandir(dir_path):
+                if entry.is_file():
+                    abs_path = entry.path
+                    rel_path = os.path.relpath(abs_path, self.root_dir)
+                    files[rel_path] = FileState(
+                        content_hash=self._file_hash(abs_path)
+                    )
+                elif entry.is_dir():
+                    walk(entry.path, level + 1)
+
+        walk(self.root_dir, level=1)
+
+        LOGGER.debug('discovered %d files', len(files))
+        return StorageState(files)
 
     def get_file_state(self, path: str):
         abs_path = os.path.join(self.root_dir, path)
