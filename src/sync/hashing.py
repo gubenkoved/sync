@@ -31,3 +31,17 @@ def hash_dict(data: Dict[str, str]) -> str:
             f.flush()
             buffer.seek(0)
             return hash_stream(buffer)
+
+
+def dropbox_hash_stream(stream: BinaryIO) -> str:
+    with io.BytesIO() as hash_buffer:
+        while True:
+            block = stream.read(4 * 1024 * 1024)
+            if not block:
+                break
+            with io.BytesIO(block) as block_stream:
+                block_hash = sha256_stream(block_stream)
+                hash_buffer.write(block_hash)
+        hash_buffer.seek(0)
+        result_hash = sha256_stream(hash_buffer)
+        return result_hash.hex()
