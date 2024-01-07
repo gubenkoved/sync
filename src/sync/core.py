@@ -173,7 +173,9 @@ class Syncer:
             set(self.dst_provider.supported_hash_types()))
 
         if shared_hash_types:
-            LOGGER.debug('found hashes supported by both providers: %s', shared_hash_types)
+            LOGGER.debug(
+                'hashes supported by both providers: %s',
+                ', '.join(str(t) for t in shared_hash_types))
             hash_type = list(shared_hash_types)[0]
             src_hash = self.src_provider.compute_hash(path, hash_type)
             dst_hash = self.dst_provider.compute_hash(path, hash_type)

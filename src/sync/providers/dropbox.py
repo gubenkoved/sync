@@ -22,6 +22,7 @@ class DropboxProvider(ProviderBase):
         self.is_refresh_token = is_refresh_token
         self.app_key = app_key
         self.app_secret = app_secret
+        self._dropbox = None
 
     def get_handle(self) -> str:
         return 'd-' + hash_dict({
@@ -30,16 +31,19 @@ class DropboxProvider(ProviderBase):
         })
 
     def _get_dropbox(self) -> dropbox.Dropbox:
-        if not self.is_refresh_token:
-            return dropbox.Dropbox(
-                oauth2_access_token=self.token
-            )
-        else:
-            return dropbox.Dropbox(
-                oauth2_refresh_token=self.token,
-                app_key=self.app_key,
-                app_secret=self.app_secret,
-            )
+        if self._dropbox is None:
+            if not self.is_refresh_token:
+                self._dropbox = dropbox.Dropbox(
+                    oauth2_access_token=self.token
+                )
+            else:
+                self._dropbox = dropbox.Dropbox(
+                    oauth2_refresh_token=self.token,
+                    app_key=self.app_key,
+                    app_secret=self.app_secret,
+                )
+        assert self._dropbox is not None
+        return self._dropbox
 
     def _get_full_path(self, path: str):
         return os.path.join(self.root_dir, path)
