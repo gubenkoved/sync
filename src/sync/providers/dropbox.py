@@ -10,6 +10,8 @@ import dropbox
 from dropbox.files import FileMetadata, WriteMode
 
 
+# TODO: support mode where we manually walk directories so that we can control
+#  depth
 class DropboxProvider(ProviderBase):
     SUPPORTED_HASH_TYPES = [HashType.DROPBOX_SHA256]
 

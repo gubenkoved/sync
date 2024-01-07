@@ -12,8 +12,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 # TODO: provider should be able to have cache store
-#  (e.g. to avoid recomputing hashes), this probably can be united with the
-#  other provider state
+#  (e.g. to avoid recomputing hashes when there seem to be no reason to do so, like
+#  both size and modification time is unchanged), this probably can be united with
+#  the other provider state
 # TODO: handle empty directories? git does not handle that...
 class FSProvider(ProviderBase):
     BUFFER_SIZE = 4096

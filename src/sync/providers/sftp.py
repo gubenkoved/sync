@@ -10,7 +10,7 @@ from sync.hashing import hash_dict, HashType
 from sync.state import FileState, StorageState
 
 
-# TODO: add certificate based auth
+# TODO: control depth manually when walking directories
 class STFPProvider(ProviderBase):
     def __init__(self, host: str, username: str, root_dir: str,
                  password: Optional[str] = None, key_path: Optional[str] = None,
