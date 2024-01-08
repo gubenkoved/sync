@@ -23,7 +23,7 @@ class FSProvider(ProviderBase):
     def __init__(self, root_dir: str, depth: Optional[int] = None):
         if depth is not None:
             if depth <= 0:
-                raise ValueError('invalid dept value')
+                raise ValueError('invalid depth value')
 
         LOGGER.debug('init FS provider with root at "%s"', root_dir)
         self.root_dir = os.path.abspath(os.path.expanduser(root_dir))
@@ -35,7 +35,7 @@ class FSProvider(ProviderBase):
     def get_handle(self) -> str:
         return 'fs-' + hash_dict({
             'root_dif': self.root_dir,
-            'depth': str(self.depth or -1),
+            'depth': self.depth,
         })
 
     def get_state(self) -> StorageState:

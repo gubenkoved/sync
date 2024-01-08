@@ -10,17 +10,22 @@ from sync.hashing import hash_dict, HashType
 from sync.state import FileState, StorageState
 
 
-# TODO: control depth manually when walking directories
 class STFPProvider(ProviderBase):
     def __init__(self, host: str, username: str, root_dir: str,
                  password: Optional[str] = None, key_path: Optional[str] = None,
-                 port: int = 22):
+                 port: int = 22, depth: Optional[int] = None):
         self.host = host
         self.username = username
         self.root_dir = root_dir
         self.password = password
         self.key_path = key_path
         self.port = port
+        self.depth = depth
+
+        if depth is not None:
+            if depth < 1:
+                raise ValueError(
+                    'depth should either be None or bigger or equal to 1')
 
         if self.key_path:
             self.key_path = os.path.expanduser(self.key_path)
@@ -29,6 +34,7 @@ class STFPProvider(ProviderBase):
         return 'sftp-' + hash_dict({
             'host': self.host,
             'root_dir': self.root_dir,
+            'depth': self.depth,
         })
 
     def _connect(self) -> Tuple[paramiko.SSHClient, paramiko.SFTPClient]:
@@ -61,7 +67,10 @@ class STFPProvider(ProviderBase):
 
         files = {}
 
-        def walk(dir_path):
+        def walk(dir_path, depth):
+            if depth >= self.depth:
+                return
+
             sftp.chdir(dir_path)
             dirs = []
 
@@ -81,10 +90,10 @@ class STFPProvider(ProviderBase):
                     dirs.append(filename)
 
             for dir_name in dirs:
-                walk(os.path.join(dir_path, dir_name))
+                walk(os.path.join(dir_path, dir_name), depth=depth + 1)
 
         with ssh, sftp:
-            walk(self.root_dir)
+            walk(self.root_dir, depth=1)
 
         return StorageState(files)
 

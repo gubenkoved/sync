@@ -2,7 +2,7 @@ import io
 import json
 import logging
 from hashlib import sha256
-from typing import BinaryIO, Dict
+from typing import BinaryIO, Dict, Any
 from enum import StrEnum
 
 
@@ -28,7 +28,7 @@ def hash_stream(stream: BinaryIO) -> str:
     return sha256_stream(stream)
 
 
-def hash_dict(data: Dict[str, str]) -> str:
+def hash_dict(data: Dict[str, Any]) -> str:
     assert data
     with io.BytesIO() as buffer:
         with io.TextIOWrapper(buffer) as f:
