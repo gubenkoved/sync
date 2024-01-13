@@ -7,7 +7,7 @@ from sync.state import FileState, StorageState
 from sync.hashing import hash_dict, HashType
 
 import dropbox
-from dropbox.files import FileMetadata, WriteMode
+from dropbox.files import FileMetadata, FolderMetadata, WriteMode
 
 
 # TODO: support mode where we manually walk directories so that we can control
@@ -17,19 +17,21 @@ class DropboxProvider(ProviderBase):
 
     def __init__(self, account_id: str, token: str, root_dir: str,
                  is_refresh_token=False, app_key: Optional[str] = None,
-                 app_secret: Optional[str] = None):
+                 app_secret: Optional[str] = None, depth: Optional[int] = None):
         self.account_id = account_id
         self.root_dir = root_dir
         self.token = token
         self.is_refresh_token = is_refresh_token
         self.app_key = app_key
         self.app_secret = app_secret
+        self.depth = depth
         self._dropbox = None
 
     def get_handle(self) -> str:
         return 'd-' + hash_dict({
             'account_id': self.account_id,
             'root_dir': self.root_dir,
+            'depth': self.depth,
         })
 
     def _get_dropbox(self) -> dropbox.Dropbox:
@@ -50,29 +52,33 @@ class DropboxProvider(ProviderBase):
     def _get_full_path(self, path: str):
         return os.path.join(self.root_dir, path)
 
-    def get_state(self) -> StorageState:
-        dbx = self._get_dropbox()
-
-        files = {}
-
-        def process(list_result):
-            for entry in list_result.entries:
-                if not isinstance(entry, FileMetadata):
-                    continue
-                full_path = entry.path_display
-                assert full_path.startswith(self.root_dir)
-                rel_path = os.path.relpath(full_path, self.root_dir)
-                files[rel_path] = FileState(
-                    entry.content_hash,
-                )
-
-        list_result = dbx.files_list_folder(self.root_dir, recursive=True)
-        process(list_result)
-
+    def _list_folder(self, dbx: dropbox.Dropbox, path: str):
+        entries = []
+        list_result = dbx.files_list_folder(path)
+        entries.extend(list_result.entries)
         while list_result.has_more:
             list_result = dbx.files_list_folder_continue(list_result.cursor)
-            process(list_result)
+            entries.extend(list_result.entries)
+        return entries
 
+    def get_state(self) -> StorageState:
+        dbx = self._get_dropbox()
+        files = {}
+
+        def walk(path: str, depth: int):
+            if self.depth is not None and depth > self.depth:
+                return
+            for entry in self._list_folder(dbx, path):
+                if isinstance(entry, FileMetadata):
+                    full_path = entry.path_display
+                    assert full_path.startswith(self.root_dir)
+                    rel_path = os.path.relpath(full_path, self.root_dir)
+                    files[rel_path] = FileState(
+                        entry.content_hash,
+                    )
+                elif isinstance(entry, FolderMetadata):
+                    walk(entry.path_display, depth+1)
+        walk(self.root_dir, depth=1)
         return StorageState(files)
 
     def get_file_state(self, path: str) -> FileState:
