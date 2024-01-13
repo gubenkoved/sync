@@ -1,3 +1,4 @@
+import fnmatch
 import logging
 import os.path
 import re
@@ -8,7 +9,6 @@ from typing import Dict, BinaryIO, Optional, Callable, List
 
 from sync.hashing import hash_dict, hash_stream, HashType
 from sync.state import FileState, StorageState, SyncPairState
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -117,22 +117,34 @@ def make_regex_matcher(pattern: str) -> Callable[[str], bool]:
     return matcher
 
 
-# TODO: add selective sync
+def make_glob_matcher(glob_pattern: str) -> Callable[[str], bool]:
+    regex_pattern = fnmatch.translate(glob_pattern)
+    regex = re.compile(regex_pattern, re.IGNORECASE)
+
+    def matcher(path: str):
+        return bool(regex.match(path))
+
+    return matcher
+
+
 # TODO: detect MOVEMENT via DELETE/ADD pair for the file with same content hash
 class Syncer:
     def __init__(self,
                  src_provider: ProviderBase,
                  dst_provider: ProviderBase,
                  state_root_dir: str = '.state',
-                 filter: Optional[str] = None):
+                 filter_glob: Optional[str] = None):
         self.src_provider = src_provider
         self.dst_provider = dst_provider
         self.state_root_dir = os.path.abspath(os.path.expanduser(state_root_dir))
-        self.filter = filter
+        self.filter_glob = filter_glob
 
         if not os.path.exists(self.state_root_dir):
             LOGGER.warning('state dir does not exist -> create')
             os.makedirs(self.state_root_dir)
+
+        if getattr(src_provider, 'depth') != getattr(dst_provider, 'depth'):
+            raise SyncError('Depth mismatch between providers')
 
     def get_state_handle(self):
         src_handle = self.src_provider.get_handle()
@@ -141,7 +153,7 @@ class Syncer:
         pair_handle = hash_dict({
             'src': src_handle,
             'dst': dst_handle,
-            'filter': self.filter or '',
+            'filter_glob': self.filter_glob,
         })
         return pair_handle
 
@@ -206,8 +218,8 @@ class Syncer:
         src_state = filter_state(src_state, not_ignored_matcher)
         dst_state = filter_state(dst_state, not_ignored_matcher)
 
-        if self.filter:
-            filter_matcher = make_regex_matcher(self.filter)
+        if self.filter_glob:
+            filter_matcher = make_glob_matcher(self.filter_glob)
             src_state = filter_state(src_state, filter_matcher)
             dst_state = filter_state(dst_state, filter_matcher)
 

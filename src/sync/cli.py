@@ -3,7 +3,7 @@
 import argparse
 import logging
 import sys
-from typing import List
+from typing import List, Optional
 
 import coloredlogs
 
@@ -21,11 +21,11 @@ LOGGER = logging.getLogger('cli')
 def main(source_provider: ProviderBase,
          destination_provider: ProviderBase,
          dry_run: bool = False,
-         filter: str = None):
+         filter_glob: Optional[str] = None):
     syncer = Syncer(
         source_provider,
         destination_provider,
-        filter=filter,
+        filter_glob=filter_glob,
     )
     syncer.sync(dry_run=dry_run)
 
@@ -40,18 +40,19 @@ def parse_args(args: List[str]):
     return result
 
 
-def init_provider(args: List[str]):
+def init_provider(args: List[str], depth: Optional[int] = None):
     provider_type = args[0]
     provider_args = parse_args(args[1:])
 
-    def get(param: str, required=True):
+    def get(param: str, required=True) -> Optional[str]:
         if required and param not in provider_args:
             raise Exception('expected %s for %s provider' % (param, provider_type))
         return provider_args.pop(param, None)
 
     if provider_type == 'FS':
         provider = FSProvider(
-            root_dir=get('root')
+            root_dir=get('root'),
+            depth=depth,
         )
     elif provider_type == 'D':
         account_id = get('id')
@@ -75,6 +76,7 @@ def init_provider(args: List[str]):
         provider = DropboxProvider(
             account_id=account_id,
             root_dir=get('root'),
+            depth=depth,
             **dropbox_args,
         )
     elif provider_type == 'SFTP':
@@ -85,6 +87,7 @@ def init_provider(args: List[str]):
             key_path=get('key', required=False),
             password=get('pass', required=False),
             port=int(get('port', required=False) or 22),
+            depth=depth,
         )
     else:
         raise Exception('unknown provider: "%s"' % provider_type)
@@ -98,31 +101,36 @@ def init_provider(args: List[str]):
 def entrypoint():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--log-level', type=str, required=False, default='INFO',
-        choices=['DEBUG', 'INFO', 'WARN', 'ERROR'])
+        '--log-level', type=str, required=False, default='info')
 
-    parser.add_argument('-s', '--source', nargs='+', required=True)
-    parser.add_argument('-d', '--destination', nargs='+', required=True)
-    parser.add_argument('--dry-run', action='store_true', required=False, default=False)
-    parser.add_argument('--filter', type=str, default=None, required=False)
+    parser.add_argument(
+        '-s', '--source', nargs='+', required=True)
+    parser.add_argument(
+        '-d', '--destination', nargs='+', required=True)
+    parser.add_argument(
+        '--dry-run', action='store_true', required=False, default=False)
+    parser.add_argument(
+        '--depth', type=int, required=False, default=None)
+    parser.add_argument(
+        '-f', '--filter-glob', type=str, default=None, required=False)
 
     args = parser.parse_args()
 
-    coloredlogs.install(logging.getLevelName(args.log_level))
+    coloredlogs.install(logging.getLevelName(args.log_level.upper()))
 
     # disable too verbose logging
     logging.getLogger('dropbox').setLevel(logging.WARNING)
     logging.getLogger('paramiko').setLevel(logging.WARNING)
 
-    source_provider = init_provider(args.source)
-    destination_provider = init_provider(args.destination)
+    source_provider = init_provider(args.source, depth=args.depth)
+    destination_provider = init_provider(args.destination, depth=args.depth)
 
     try:
         main(
             source_provider,
             destination_provider,
             dry_run=args.dry_run,
-            filter=args.filter,
+            filter_glob=args.filter_glob,
         )
     except Exception as err:
         LOGGER.fatal('error: %s', err, exc_info=True)

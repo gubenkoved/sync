@@ -10,8 +10,6 @@ import dropbox
 from dropbox.files import FileMetadata, FolderMetadata, WriteMode
 
 
-# TODO: support mode where we manually walk directories so that we can control
-#  depth
 class DropboxProvider(ProviderBase):
     SUPPORTED_HASH_TYPES = [HashType.DROPBOX_SHA256]
 
@@ -26,6 +24,10 @@ class DropboxProvider(ProviderBase):
         self.app_secret = app_secret
         self.depth = depth
         self._dropbox = None
+
+        if depth is not None:
+            if depth <= 0:
+                raise ValueError('invalid depth value')
 
     def get_handle(self) -> str:
         return 'd-' + hash_dict({
