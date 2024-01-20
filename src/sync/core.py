@@ -51,6 +51,14 @@ def should_ignore(path: str):
     return filename.lower() in IGNORE_FILENAMES
 
 
+class ProviderError(Exception):
+    pass
+
+
+class FileNotFoundProviderError(ProviderError):
+    pass
+
+
 class ProviderBase(ABC):
     @abstractmethod
     def get_handle(self) -> str:

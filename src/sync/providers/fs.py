@@ -2,7 +2,13 @@ import logging
 import os.path
 from typing import BinaryIO, List, Optional
 
-from sync.core import ProviderBase, StorageState, FileState, SyncError
+from sync.core import (
+    ProviderBase,
+    StorageState,
+    FileState,
+    SyncError,
+    FileNotFoundProviderError,
+)
 from sync.hashing import (
     hash_stream, hash_dict, HashType,
     sha256_stream, dropbox_hash_stream,
@@ -64,9 +70,12 @@ class FSProvider(ProviderBase):
 
     def get_file_state(self, path: str):
         abs_path = os.path.join(self.root_dir, path)
-        return FileState(
-            content_hash=self._file_hash(abs_path)
-        )
+        try:
+            return FileState(
+                content_hash=self._file_hash(abs_path)
+            )
+        except FileNotFoundError:
+            raise FileNotFoundProviderError(f'File not found: {path}')
 
     def _file_hash(self, path):
         LOGGER.debug('compute hash for "%s"', path)
@@ -76,7 +85,10 @@ class FSProvider(ProviderBase):
 
     def read(self, path: str) -> BinaryIO:
         abs_path = os.path.join(self.root_dir, path)
-        return open(abs_path, 'rb')
+        try:
+            return open(abs_path, 'rb')
+        except FileNotFoundError:
+            raise FileNotFoundProviderError(f'File not found: {path}')
 
     # TODO: write to temp file, then swap
     def write(self, path: str, stream: BinaryIO):
@@ -95,7 +107,10 @@ class FSProvider(ProviderBase):
 
     def remove(self, path: str):
         abs_path = os.path.join(self.root_dir, path)
-        os.unlink(abs_path)
+        try:
+            os.unlink(abs_path)
+        except FileNotFoundError:
+            raise FileNotFoundProviderError(f'File not found: {path}')
 
     def supported_hash_types(self) -> List[HashType]:
         return self.SUPPORTED_HASH_TYPES
@@ -104,10 +119,14 @@ class FSProvider(ProviderBase):
         assert hash_type in self.SUPPORTED_HASH_TYPES
 
         abs_path = os.path.join(self.root_dir, path)
-        with open(abs_path, 'rb') as f:
-            if hash_type == HashType.SHA256:
-                return sha256_stream(f)
-            elif hash_type == HashType.DROPBOX_SHA256:
-                return dropbox_hash_stream(f)
-            else:
-                raise NotImplementedError
+
+        try:
+            with open(abs_path, 'rb') as f:
+                if hash_type == HashType.SHA256:
+                    return sha256_stream(f)
+                elif hash_type == HashType.DROPBOX_SHA256:
+                    return dropbox_hash_stream(f)
+                else:
+                    raise NotImplementedError
+        except FileNotFoundError:
+            raise FileNotFoundProviderError(f'File not found: {path}')
