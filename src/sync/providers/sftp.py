@@ -56,19 +56,24 @@ class STFPProvider(ProviderBase):
         return ssh, sftp
 
     @staticmethod
-    def _file_state(entry):
+    def _file_state(ssh: paramiko.SSHClient, full_path: str):
+        _, stdout, stderr = ssh.exec_command('shasum -a 256 %s' % shlex.quote(full_path))
+        stdout_str = stdout.read().decode('utf-8')
+        stderr_str = stderr.read().decode('utf-8')
+        exit_code = stdout.channel.recv_exit_status()
+        if exit_code != 0:
+            if stdout_str:
+                LOGGER.error('STDOUT: %s', stdout_str)
+            if stderr_str:
+                LOGGER.error('STDERR: %s', stderr_str)
+            raise ProviderError('unable to calculate file hash')
+        sha256 = stdout_str.split(' ')[0]
         return FileState(
-            # TODO: how to properly detect changes if size and
-            #  modification time did not change?
-            content_hash=hash_dict({
-                'modified': str(entry.st_mtime),
-                'size': str(entry.st_size),
-            })
+            content_hash=sha256,
         )
 
     def get_state(self) -> StorageState:
         ssh, sftp = self._connect()
-
         files = {}
 
         def walk(dir_path, depth):
@@ -87,8 +92,7 @@ class STFPProvider(ProviderBase):
                 rel_path = os.path.relpath(full_path, self.root_dir)
 
                 if is_file:
-
-                    files[rel_path] = self._file_state(entry)
+                    files[rel_path] = self._file_state(ssh, full_path)
 
                 if is_dir:
                     dirs.append(filename)
@@ -111,7 +115,7 @@ class STFPProvider(ProviderBase):
                 sftp.chdir(dir_path)
                 entry = sftp.lstat(filename)
                 assert S_ISREG(entry.st_mode)
-                return self._file_state(entry)
+                return self._file_state(ssh, full_path)
             except FileNotFoundError:
                 raise FileNotFoundProviderError(f'File not found: {full_path}')
 
