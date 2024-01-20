@@ -15,6 +15,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class STFPProvider(ProviderBase):
+    SUPPORTED_HASH_TYPES = [HashType.SHA256]
+
     def __init__(self, host: str, username: str, root_dir: str,
                  password: Optional[str] = None, key_path: Optional[str] = None,
                  port: int = 22, depth: Optional[int] = None):
@@ -56,7 +58,7 @@ class STFPProvider(ProviderBase):
         return ssh, sftp
 
     @staticmethod
-    def _file_state(ssh: paramiko.SSHClient, full_path: str):
+    def _sha256_file(ssh: paramiko.SSHClient, full_path: str):
         _, stdout, stderr = ssh.exec_command('shasum -a 256 %s' % shlex.quote(full_path))
         stdout_str = stdout.read().decode('utf-8')
         stderr_str = stderr.read().decode('utf-8')
@@ -67,9 +69,12 @@ class STFPProvider(ProviderBase):
             if stderr_str:
                 LOGGER.error('STDERR: %s', stderr_str)
             raise ProviderError('unable to calculate file hash')
-        sha256 = stdout_str.split(' ')[0]
+        return stdout_str.split(' ')[0]
+
+    @staticmethod
+    def _file_state(ssh: paramiko.SSHClient, full_path: str):
         return FileState(
-            content_hash=sha256,
+            content_hash=STFPProvider._sha256_file(ssh, full_path),
         )
 
     def get_state(self) -> StorageState:
@@ -165,7 +170,11 @@ class STFPProvider(ProviderBase):
                 raise FileNotFoundProviderError(f'File not found: {full_path}')
 
     def supported_hash_types(self) -> List[HashType]:
-        return []
+        return self.SUPPORTED_HASH_TYPES
 
     def compute_hash(self, path: str, hash_type: HashType) -> str:
+        if hash_type == HashType.SHA256:
+            ssh, sftp = self._connect()
+            full_path = os.path.join(self.root_dir, path)
+            return self._sha256_file(ssh, full_path)
         raise Exception('not supported')
