@@ -2,7 +2,9 @@ import os.path
 from typing import BinaryIO, Optional, List
 import io
 
-from sync.core import ProviderBase
+from dropbox.exceptions import ApiError
+
+from sync.core import ProviderBase, FileNotFoundProviderError
 from sync.state import FileState, StorageState
 from sync.hashing import hash_dict, HashType
 
@@ -85,21 +87,23 @@ class DropboxProvider(ProviderBase):
 
     def get_file_state(self, path: str) -> FileState:
         dbx = self._get_dropbox()
-
         full_path = self._get_full_path(path)
-        result = dbx.files_get_metadata(full_path)
-        assert isinstance(result, FileMetadata)
 
-        return FileState(
-            result.content_hash,
-        )
+        try:
+            result = dbx.files_get_metadata(full_path)
+            assert isinstance(result, FileMetadata)
+            return FileState(
+                result.content_hash,
+            )
+        except ApiError as err:
+            if 'not_found' in str(err):
+                raise FileNotFoundProviderError(f'File not found at {full_path}')
+            raise
 
     def read(self, path: str) -> BinaryIO:
         dbx = self._get_dropbox()
-
         full_path = self._get_full_path(path)
         metadata, response = dbx.files_download(full_path)
-
         return io.BytesIO(response.content)
 
     # TODO: use "update" method that checks file revision to avoid lost update
@@ -112,7 +116,12 @@ class DropboxProvider(ProviderBase):
     def remove(self, path: str) -> None:
         dbx = self._get_dropbox()
         full_path = self._get_full_path(path)
-        dbx.files_delete_v2(full_path)
+        try:
+            dbx.files_delete_v2(full_path)
+        except ApiError as err:
+            if 'not_found' in str(err):
+                raise FileNotFoundProviderError(f'File not found at {full_path}')
+            raise
 
     def supported_hash_types(self) -> List[HashType]:
         return self.SUPPORTED_HASH_TYPES
