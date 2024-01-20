@@ -82,7 +82,7 @@ class STFPProvider(ProviderBase):
         files = {}
 
         def walk(dir_path, depth):
-            if depth >= self.depth:
+            if self.depth is not None and depth >= self.depth:
                 return
 
             sftp.chdir(dir_path)

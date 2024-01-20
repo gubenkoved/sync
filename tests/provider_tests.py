@@ -36,6 +36,9 @@ class ProviderTestBase(unittest.TestCase):
                     b'test',
                     stream_to_bytes(read_stream)
                 )
+        state = provider.get_state()
+        self.assertEqual(1, len(state.files))
+        self.assertIn('foo', state.files)
 
     def test_write_nested(self):
         provider = self.get_provider()
@@ -43,6 +46,10 @@ class ProviderTestBase(unittest.TestCase):
             with bytes_as_stream(b'test2') as stream2:
                 provider.write('foo/bar/baz.file', stream1)
                 provider.write('foo/bar.file', stream2)
+        state = provider.get_state()
+        self.assertEqual(2, len(state.files))
+        self.assertIn('foo/bar.file', state.files)
+        self.assertIn('foo/bar/baz.file', state.files)
 
     def test_remove(self):
         provider = self.get_provider()
@@ -52,6 +59,9 @@ class ProviderTestBase(unittest.TestCase):
                 provider.write('foo/bar.file', stream2)
                 provider.remove('foo/bar/baz.file')
                 provider.remove('foo/bar.file')
+
+        state = provider.get_state()
+        self.assertEqual(0, len(state.files))
 
         # check file does not exist
         self.assertRaises(
