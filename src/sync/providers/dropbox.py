@@ -1,15 +1,14 @@
+import io
 import os.path
 from typing import BinaryIO, Optional, List
-import io
-
-from dropbox.exceptions import ApiError
-
-from sync.core import ProviderBase, FileNotFoundProviderError
-from sync.state import FileState, StorageState
-from sync.hashing import hash_dict, HashType
 
 import dropbox
+from dropbox.exceptions import ApiError
 from dropbox.files import FileMetadata, FolderMetadata, WriteMode
+
+from sync.core import ProviderBase, FileNotFoundProviderError
+from sync.hashing import hash_dict, HashType
+from sync.state import FileState, StorageState
 
 
 class DropboxProvider(ProviderBase):
@@ -103,8 +102,13 @@ class DropboxProvider(ProviderBase):
     def read(self, path: str) -> BinaryIO:
         dbx = self._get_dropbox()
         full_path = self._get_full_path(path)
-        metadata, response = dbx.files_download(full_path)
-        return io.BytesIO(response.content)
+        try:
+            metadata, response = dbx.files_download(full_path)
+            return io.BytesIO(response.content)
+        except ApiError as err:
+            if 'not_found' in str(err):
+                raise FileNotFoundProviderError(f'File not found at {full_path}')
+            raise
 
     # TODO: use "update" method that checks file revision to avoid lost update
     def write(self, path: str, content: BinaryIO) -> None:

@@ -67,6 +67,10 @@ class ProviderTestBase(unittest.TestCase):
         provider = self.get_provider()
         self.assertRaises(
             FileNotFoundProviderError,
+            lambda: provider.read('foo.file')
+        )
+        self.assertRaises(
+            FileNotFoundProviderError,
             lambda: provider.get_file_state('foo.file')
         )
 

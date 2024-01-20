@@ -1,13 +1,17 @@
 import io
+import logging
 import os.path
-from typing import BinaryIO, Optional, Tuple, List
+import shlex
 from stat import S_ISDIR, S_ISREG
+from typing import BinaryIO, Optional, Tuple, List
 
 import paramiko
 
-from sync.core import ProviderBase
+from sync.core import ProviderBase, ProviderError, FileNotFoundProviderError
 from sync.hashing import hash_dict, HashType
 from sync.state import FileState, StorageState
+
+LOGGER = logging.getLogger(__name__)
 
 
 class STFPProvider(ProviderBase):
@@ -103,10 +107,13 @@ class STFPProvider(ProviderBase):
 
         with ssh, sftp:
             dir_path, filename = os.path.split(full_path)
-            sftp.chdir(dir_path)
-            entry = sftp.lstat(filename)
-            assert S_ISREG(entry.st_mode)
-            return self._file_state(entry)
+            try:
+                sftp.chdir(dir_path)
+                entry = sftp.lstat(filename)
+                assert S_ISREG(entry.st_mode)
+                return self._file_state(entry)
+            except FileNotFoundError:
+                raise FileNotFoundProviderError(f'File not found: {full_path}')
 
     def read(self, path: str) -> BinaryIO:
         ssh, sftp = self._connect()
@@ -114,13 +121,33 @@ class STFPProvider(ProviderBase):
 
         with ssh, sftp:
             buffer = io.BytesIO()
-            sftp.getfo(full_path, buffer)
-            buffer.seek(0)
-            return buffer
+            try:
+                sftp.getfo(full_path, buffer)
+                buffer.seek(0)
+                return buffer
+            except FileNotFoundError:
+                raise FileNotFoundProviderError(f'File not found: {full_path}')
+
+    def _ensure_dir(self, ssh: paramiko.SSHClient, dir_path: str) -> None:
+        stdin, stdout, stderr = ssh.exec_command(
+            'mkdir -p %s' % shlex.quote(dir_path))
+
+        exit_code = stdout.channel.recv_exit_status()
+
+        if exit_code != 0:
+            stdout_data = stdout.read()
+            stderr_data = stderr.read()
+            if stdout_data:
+                LOGGER.error('STDOUT: %s', stdout_data)
+            if stderr_data:
+                LOGGER.error('STDERR: %s', stderr_data)
+            raise ProviderError('unable to ensure directory exists')
 
     def write(self, path: str, content: BinaryIO) -> None:
         ssh, sftp = self._connect()
         full_path = os.path.join(self.root_dir, path)
+        dir_path, _ = os.path.split(full_path)
+        self._ensure_dir(ssh, dir_path)
         with ssh, sftp:
             sftp.putfo(content, full_path)
 
@@ -128,7 +155,10 @@ class STFPProvider(ProviderBase):
         ssh, sftp = self._connect()
         full_path = os.path.join(self.root_dir, path)
         with ssh, sftp:
-            sftp.remove(full_path)
+            try:
+                sftp.remove(full_path)
+            except FileNotFoundError:
+                raise FileNotFoundProviderError(f'File not found: {full_path}')
 
     def supported_hash_types(self) -> List[HashType]:
         return []
