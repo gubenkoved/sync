@@ -13,6 +13,10 @@ class FileNotFoundProviderError(ProviderError):
     pass
 
 
+class FileAlreadyExistsError(ProviderError):
+    pass
+
+
 class ProviderBase(ABC):
     @abstractmethod
     def get_handle(self) -> str:
@@ -41,6 +45,10 @@ class ProviderBase(ABC):
 
     @abstractmethod
     def remove(self, path: str) -> None:
+        raise NotImplementedError
+
+    # TODO: finish implementation for all providers
+    def move(self, source_path: str, destination_path: str) -> None:
         raise NotImplementedError
 
     @abstractmethod

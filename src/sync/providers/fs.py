@@ -13,6 +13,7 @@ from sync.provider import (
     ProviderBase,
     ProviderError,
     FileNotFoundProviderError,
+    FileAlreadyExistsError,
 )
 from sync.hashing import (
     hash_stream, hash_dict, HashType,
@@ -122,6 +123,21 @@ class FSProvider(ProviderBase):
             os.unlink(abs_path)
         except FileNotFoundError:
             raise FileNotFoundProviderError(f'File not found: {path}')
+
+    def move(self, source_path: str, destination_path: str):
+        source_abs_path = self._abs_path(source_path)
+        destination_abs_path = self._abs_path(destination_path)
+
+        if os.path.exists(destination_abs_path):
+            raise FileAlreadyExistsError(
+                f'File already exists: {destination_path}')
+
+        try:
+            # os.rename will silently overwrite if destination already
+            # exists!
+            os.rename(source_abs_path, destination_abs_path)
+        except FileNotFoundError:
+            raise FileNotFoundProviderError(f'File not found: {source_path}')
 
     def supported_hash_types(self) -> List[HashType]:
         return self.SUPPORTED_HASH_TYPES

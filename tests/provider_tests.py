@@ -7,6 +7,7 @@ from typing import BinaryIO
 from sync.provider import (
     ProviderBase,
     FileNotFoundProviderError,
+    FileAlreadyExistsError,
 )
 from sync.hashing import HashType
 
@@ -138,6 +139,47 @@ class ProviderTestBase(unittest.TestCase):
             '954d5a49fd70d9b8bcdb35d252267829957f7ef7fa6c74f88419bdc5e82209f4',
             hash_result
         )
+
+    def test_move(self):
+        provider = self.get_provider()
+
+        with bytes_as_stream(b'test') as stream:
+            provider.write('foo', stream)
+
+        provider.move('foo', 'bar')
+
+        state = provider.get_state()
+
+        self.assertEqual(1, len(state.files))
+        self.assertIn('bar', state.files)
+
+    def test_move_non_existing(self):
+        provider = self.get_provider()
+
+        self.assertRaises(
+            FileNotFoundProviderError,
+            lambda: provider.move('foo', 'bar')
+        )
+
+    def test_move_would_overwrite(self):
+        provider = self.get_provider()
+
+        with bytes_as_stream(b'foo') as stream:
+            provider.write('foo', stream)
+
+        with bytes_as_stream(b'bar') as stream:
+            provider.write('bar', stream)
+
+        state_before = provider.get_state()
+
+        self.assertRaises(
+            FileAlreadyExistsError,
+            lambda: provider.move('foo', 'bar')
+        )
+
+        state_after = provider.get_state()
+
+        self.assertEqual(state_before, state_after)
 
 
 if __name__ == '__main__':
