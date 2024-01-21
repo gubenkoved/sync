@@ -7,7 +7,8 @@ from typing import List, Optional
 
 import coloredlogs
 
-from sync.core import Syncer, ProviderBase
+from sync.core import Syncer
+from sync.provider import ProviderBase
 from sync.providers.dropbox import DropboxProvider
 from sync.providers.fs import FSProvider
 from sync.providers.sftp import STFPProvider

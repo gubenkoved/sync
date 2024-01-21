@@ -4,7 +4,11 @@ import os
 import unittest
 from typing import BinaryIO
 
-from sync.core import ProviderBase, FileNotFoundProviderError, HashType
+from sync.provider import (
+    ProviderBase,
+    FileNotFoundProviderError,
+)
+from sync.hashing import HashType
 
 
 def bytes_as_stream(data: bytes) -> BinaryIO:

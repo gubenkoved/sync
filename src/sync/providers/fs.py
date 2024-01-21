@@ -3,10 +3,14 @@ import os.path
 from typing import BinaryIO, List, Optional
 
 from sync.core import (
-    ProviderBase,
+    SyncError,
+)
+from sync.state import (
     StorageState,
     FileState,
-    SyncError,
+)
+from sync.provider import (
+    ProviderBase,
     FileNotFoundProviderError,
 )
 from sync.hashing import (

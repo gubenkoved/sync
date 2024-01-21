@@ -6,8 +6,11 @@ import dropbox
 from dropbox.exceptions import ApiError
 from dropbox.files import FileMetadata, FolderMetadata, WriteMode
 
-from sync.core import ProviderBase, FileNotFoundProviderError
 from sync.hashing import hash_dict, HashType
+from sync.provider import (
+    ProviderBase,
+    FileNotFoundProviderError,
+)
 from sync.state import FileState, StorageState
 
 

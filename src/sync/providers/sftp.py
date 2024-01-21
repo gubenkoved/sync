@@ -7,9 +7,16 @@ from typing import BinaryIO, Optional, Tuple, List
 
 import paramiko
 
-from sync.core import ProviderBase, ProviderError, FileNotFoundProviderError
 from sync.hashing import hash_dict, HashType
-from sync.state import FileState, StorageState
+from sync.provider import (
+    ProviderBase,
+    ProviderError,
+    FileNotFoundProviderError,
+)
+from sync.state import (
+    StorageState,
+    FileState,
+)
 
 LOGGER = logging.getLogger(__name__)
 
