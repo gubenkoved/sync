@@ -47,7 +47,7 @@ class ProviderBase(ABC):
     def remove(self, path: str) -> None:
         raise NotImplementedError
 
-    # TODO: finish implementation for all providers
+    @abstractmethod
     def move(self, source_path: str, destination_path: str) -> None:
         raise NotImplementedError
 

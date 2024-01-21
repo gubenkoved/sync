@@ -120,10 +120,9 @@ class STFPProvider(ProviderBase):
 
     def _full_path(self, path):
         full_path = os.path.join(self.root_dir, path)
-
+        full_path = os.path.abspath(full_path)
         if not full_path.startswith(self.root_dir):
             raise ProviderError('Path outside of the root dir!')
-
         return full_path
 
     def get_file_state(self, path: str) -> FileState:

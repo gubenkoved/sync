@@ -76,6 +76,7 @@ class FSProvider(ProviderBase):
 
     def _abs_path(self, path: str):
         abs_path = os.path.join(self.root_dir, path)
+        abs_path = os.path.abspath(abs_path)
         if not abs_path.startswith(self.root_dir):
             raise ProviderError('path outside of root dir')
         return abs_path

@@ -9,7 +9,9 @@ from dropbox.files import FileMetadata, FolderMetadata, WriteMode
 from sync.hashing import hash_dict, HashType
 from sync.provider import (
     ProviderBase,
+    ProviderError,
     FileNotFoundProviderError,
+    FileAlreadyExistsError,
 )
 from sync.state import FileState, StorageState
 
@@ -56,7 +58,11 @@ class DropboxProvider(ProviderBase):
         return self._dropbox
 
     def _get_full_path(self, path: str):
-        return os.path.join(self.root_dir, path)
+        full_path = os.path.join(self.root_dir, path)
+        full_path = os.path.abspath(full_path)
+        if not full_path.startswith(self.root_dir):
+            raise ProviderError('Path outside of the root dir!')
+        return full_path
 
     def _list_folder(self, dbx: dropbox.Dropbox, path: str):
         entries = []
@@ -128,6 +134,23 @@ class DropboxProvider(ProviderBase):
         except ApiError as err:
             if 'not_found' in str(err):
                 raise FileNotFoundProviderError(f'File not found at {full_path}')
+            raise
+
+    def move(self, source_path: str, destination_path: str) -> None:
+        dbx = self._get_dropbox()
+
+        source_full_path = self._get_full_path(source_path)
+        destination_full_path = self._get_full_path(destination_path)
+
+        try:
+            dbx.files_move_v2(source_full_path, destination_full_path)
+        except ApiError as err:
+            if 'not_found' in str(err):
+                raise FileNotFoundProviderError(
+                    f'File not found at {source_full_path}')
+            elif 'conflict' in str(err):
+                raise FileAlreadyExistsError(
+                    f'File already exists at {destination_full_path}')
             raise
 
     def supported_hash_types(self) -> List[HashType]:
