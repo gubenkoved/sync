@@ -12,6 +12,7 @@ from sync.provider import (
     ProviderBase,
     ProviderError,
     FileNotFoundProviderError,
+    FileAlreadyExistsError,
 )
 from sync.state import (
     StorageState,
@@ -117,9 +118,17 @@ class STFPProvider(ProviderBase):
 
         return StorageState(files)
 
+    def _full_path(self, path):
+        full_path = os.path.join(self.root_dir, path)
+
+        if not full_path.startswith(self.root_dir):
+            raise ProviderError('Path outside of the root dir!')
+
+        return full_path
+
     def get_file_state(self, path: str) -> FileState:
         ssh, sftp = self._connect()
-        full_path = os.path.join(self.root_dir, path)
+        full_path = self._full_path(path)
 
         with ssh, sftp:
             dir_path, filename = os.path.split(full_path)
@@ -133,7 +142,7 @@ class STFPProvider(ProviderBase):
 
     def read(self, path: str) -> BinaryIO:
         ssh, sftp = self._connect()
-        full_path = os.path.join(self.root_dir, path)
+        full_path = self._full_path(path)
 
         with ssh, sftp:
             buffer = io.BytesIO()
@@ -161,7 +170,7 @@ class STFPProvider(ProviderBase):
 
     def write(self, path: str, content: BinaryIO) -> None:
         ssh, sftp = self._connect()
-        full_path = os.path.join(self.root_dir, path)
+        full_path = self._full_path(path)
         dir_path, _ = os.path.split(full_path)
         self._ensure_dir(ssh, dir_path)
         with ssh, sftp:
@@ -169,12 +178,34 @@ class STFPProvider(ProviderBase):
 
     def remove(self, path: str) -> None:
         ssh, sftp = self._connect()
-        full_path = os.path.join(self.root_dir, path)
+        full_path = self._full_path(path)
         with ssh, sftp:
             try:
                 sftp.remove(full_path)
             except FileNotFoundError:
                 raise FileNotFoundProviderError(f'File not found: {full_path}')
+
+    def move(self, source_path: str, destination_path: str) -> None:
+        ssh, sftp = self._connect()
+        source_full_path = self._full_path(source_path)
+        destination_full_path = self._full_path(destination_path)
+
+        with ssh, sftp:
+            try:
+                sftp.lstat(destination_full_path)
+                destination_exists = True
+            except FileNotFoundError:
+                destination_exists = False
+
+            if destination_exists:
+                raise FileAlreadyExistsError(
+                    f'File already exists: {destination_full_path}')
+
+            try:
+                sftp.rename(source_full_path, destination_full_path)
+            except FileNotFoundError:
+                raise FileNotFoundProviderError(
+                    f'File not found: {source_full_path}')
 
     def supported_hash_types(self) -> List[HashType]:
         return self.SUPPORTED_HASH_TYPES
