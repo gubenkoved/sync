@@ -11,6 +11,7 @@ from sync.state import (
 )
 from sync.provider import (
     ProviderBase,
+    ProviderError,
     FileNotFoundProviderError,
 )
 from sync.hashing import (
@@ -72,8 +73,14 @@ class FSProvider(ProviderBase):
         LOGGER.debug('discovered %d files', len(files))
         return StorageState(files)
 
-    def get_file_state(self, path: str):
+    def _abs_path(self, path: str):
         abs_path = os.path.join(self.root_dir, path)
+        if not abs_path.startswith(self.root_dir):
+            raise ProviderError('path outside of root dir')
+        return abs_path
+
+    def get_file_state(self, path: str):
+        abs_path = self._abs_path(path)
         try:
             return FileState(
                 content_hash=self._file_hash(abs_path)
@@ -83,12 +90,12 @@ class FSProvider(ProviderBase):
 
     def _file_hash(self, path):
         LOGGER.debug('compute hash for "%s"', path)
-        abs_path = os.path.join(self.root_dir, path)
+        abs_path = self._abs_path(path)
         with open(abs_path, 'rb') as f:
             return hash_stream(f)
 
     def read(self, path: str) -> BinaryIO:
-        abs_path = os.path.join(self.root_dir, path)
+        abs_path = self._abs_path(path)
         try:
             return open(abs_path, 'rb')
         except FileNotFoundError:
@@ -96,7 +103,7 @@ class FSProvider(ProviderBase):
 
     # TODO: write to temp file, then swap
     def write(self, path: str, stream: BinaryIO):
-        abs_path = os.path.join(self.root_dir, path)
+        abs_path = self._abs_path(path)
         dir_path = os.path.dirname(abs_path)
 
         if not os.path.exists(dir_path):
@@ -110,7 +117,7 @@ class FSProvider(ProviderBase):
                 f.write(buffer)
 
     def remove(self, path: str):
-        abs_path = os.path.join(self.root_dir, path)
+        abs_path = self._abs_path(path)
         try:
             os.unlink(abs_path)
         except FileNotFoundError:
@@ -122,7 +129,7 @@ class FSProvider(ProviderBase):
     def compute_hash(self, path: str, hash_type: HashType) -> str:
         assert hash_type in self.SUPPORTED_HASH_TYPES
 
-        abs_path = os.path.join(self.root_dir, path)
+        abs_path = self._abs_path(path)
 
         try:
             with open(abs_path, 'rb') as f:
