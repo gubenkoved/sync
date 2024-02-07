@@ -5,7 +5,7 @@ import uuid
 
 from sync.core import ProviderBase
 from sync.providers.dropbox import DropboxProvider
-from tests.provider_tests import ProviderTestBase
+from tests.test_provider_base import ProviderTestBase
 
 
 class DropboxProviderTest(ProviderTestBase):

@@ -1,3 +1,4 @@
 coloredlogs==15.0.1
 dropbox==11.36.2
 paramiko==3.4.0
+setuptools==69.0.3
