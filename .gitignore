@@ -4,3 +4,5 @@ venv
 .state
 build
 dist
+*.pyc
+.python-version
