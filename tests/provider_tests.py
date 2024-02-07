@@ -45,6 +45,24 @@ class ProviderTestBase(unittest.TestCase):
         self.assertEqual(1, len(state.files))
         self.assertIn('foo', state.files)
 
+    def test_rewrite(self):
+        provider = self.get_provider()
+
+        with bytes_as_stream(b'test1') as stream:
+            provider.write('foo', stream)
+
+        with bytes_as_stream(b'test2') as stream:
+            provider.write('foo', stream)
+
+        with provider.read('foo') as read_stream:
+            self.assertEqual(
+                b'test2',
+                stream_to_bytes(read_stream)
+            )
+        state = provider.get_state()
+        self.assertEqual(1, len(state.files))
+        self.assertIn('foo', state.files)
+
     def test_write_nested(self):
         provider = self.get_provider()
         with bytes_as_stream(b'test') as stream1:

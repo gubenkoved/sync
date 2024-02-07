@@ -1,13 +1,14 @@
 import logging
 import os.path
+import tempfile
 from typing import BinaryIO, List, Optional
 
 from sync.core import (
     SyncError,
 )
-from sync.state import (
-    StorageState,
-    FileState,
+from sync.hashing import (
+    hash_stream, hash_dict, HashType,
+    sha256_stream, dropbox_hash_stream,
 )
 from sync.provider import (
     ProviderBase,
@@ -15,9 +16,9 @@ from sync.provider import (
     FileNotFoundProviderError,
     FileAlreadyExistsError,
 )
-from sync.hashing import (
-    hash_stream, hash_dict, HashType,
-    sha256_stream, dropbox_hash_stream,
+from sync.state import (
+    StorageState,
+    FileState,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -103,7 +104,6 @@ class FSProvider(ProviderBase):
         except FileNotFoundError:
             raise FileNotFoundProviderError(f'File not found: {path}')
 
-    # TODO: write to temp file, then swap
     def write(self, path: str, stream: BinaryIO):
         abs_path = self._abs_path(path)
         dir_path = os.path.dirname(abs_path)
@@ -111,12 +111,15 @@ class FSProvider(ProviderBase):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
-        with open(abs_path, 'wb') as f:
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             while True:
                 buffer = stream.read(self.BUFFER_SIZE)
                 if not buffer:
                     break
-                f.write(buffer)
+                temp_file.write(buffer)
+
+        # now atomically move temp file
+        os.rename(temp_file.name, abs_path)
 
     def remove(self, path: str):
         abs_path = self._abs_path(path)
