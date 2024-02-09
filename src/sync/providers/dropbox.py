@@ -101,7 +101,8 @@ class DropboxProvider(ProviderBase):
             result = dbx.files_get_metadata(full_path)
             assert isinstance(result, FileMetadata)
             return FileState(
-                result.content_hash,
+                content_hash=result.content_hash,
+                revision=result.rev,
             )
         except ApiError as err:
             if 'not_found' in str(err):

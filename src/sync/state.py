@@ -3,18 +3,14 @@ from typing import BinaryIO, Dict
 
 
 # TODO: add more metadata like creation and last update time, also file size
-# TODO: add "revision" marker for optimistic concurrency
 class FileState:
-    def __init__(self, content_hash: str):
+    def __init__(self, content_hash: str, revision: str = None):
         self.content_hash = content_hash
+        self.revision = revision
 
     def __repr__(self):
-        return '<FileState hash="%s">' % self.content_hash
-
-    def __eq__(self, other):
-        if not isinstance(other, FileState):
-            return False
-        return self.content_hash == other.content_hash
+        return 'FileState(hash="%s", revision="%s")>' % (
+            self.content_hash, self.revision)
 
 
 class StorageState:
@@ -23,11 +19,6 @@ class StorageState:
 
     def __repr__(self):
         return '<StorageState %s files>' % len(self.files)
-
-    def __eq__(self, other):
-        if not isinstance(other, StorageState):
-            return False
-        return self.files == other.files
 
 
 class SyncPairState:

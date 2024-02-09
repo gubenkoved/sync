@@ -4,12 +4,13 @@ import os
 import unittest
 from typing import BinaryIO
 
+from sync.hashing import HashType
 from sync.provider import (
     ProviderBase,
     FileNotFoundProviderError,
     FileAlreadyExistsError,
 )
-from sync.hashing import HashType
+from sync.state import StorageState
 
 
 def bytes_as_stream(data: bytes) -> BinaryIO:
@@ -31,6 +32,15 @@ class ProviderTestBase(unittest.TestCase):
     @abc.abstractmethod
     def get_provider(self) -> ProviderBase:
         raise NotImplementedError
+
+    def assert_storage_state_equal(self, expected: StorageState, actual: StorageState):
+        self.assertEqual(len(expected.files), len(actual.files))
+        self.assertEqual(set(expected.files), set(actual.files))
+
+        for path in expected.files:
+            expected_file_state = expected.files[path]
+            actual_file_state = actual.files[path]
+            self.assertEqual(expected_file_state.content_hash, actual_file_state.content_hash)
 
     def test_write_read(self):
         provider = self.get_provider()
@@ -197,7 +207,7 @@ class ProviderTestBase(unittest.TestCase):
 
         state_after = provider.get_state()
 
-        self.assertEqual(state_before, state_after)
+        self.assert_storage_state_equal(state_before, state_after)
 
 
 if __name__ == '__main__':
