@@ -236,10 +236,12 @@ class Syncer:
             )
             if safe_update_supported:
                 LOGGER.debug(
-                    'updating file at %s with last known revision being %s checked',
+                    'safe updating "%s" (expected revision "%s")',
                     path, cur_file_state.revision)
+                assert isinstance(provider, SafeUpdateSupportMixin)
                 provider.update(path, stream, revision=cur_file_state.revision)
             else:  # either file is new or provider does not support concurrency safe update
+                LOGGER.debug('writing file at "%s"', path)
                 provider.write(path, stream)
 
         for path, action in actions.items():

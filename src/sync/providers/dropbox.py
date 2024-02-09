@@ -75,6 +75,13 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             entries.extend(list_result.entries)
         return entries
 
+    @staticmethod
+    def _file_metadata_to_file_state(entry: FileMetadata):
+        return FileState(
+            content_hash=entry.content_hash,
+            revision=entry.rev,
+        )
+
     def get_state(self) -> StorageState:
         dbx = self._get_dropbox()
         files = {}
@@ -87,9 +94,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
                     full_path = entry.path_display
                     assert full_path.startswith(self.root_dir)
                     rel_path = os.path.relpath(full_path, self.root_dir)
-                    files[rel_path] = FileState(
-                        entry.content_hash,
-                    )
+                    files[rel_path] = self._file_metadata_to_file_state(entry)
                 elif isinstance(entry, FolderMetadata):
                     walk(entry.path_display, depth+1)
         walk(self.root_dir, depth=1)
@@ -100,12 +105,9 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         full_path = self._get_full_path(path)
 
         try:
-            result = dbx.files_get_metadata(full_path)
-            assert isinstance(result, FileMetadata)
-            return FileState(
-                content_hash=result.content_hash,
-                revision=result.rev,
-            )
+            entry = dbx.files_get_metadata(full_path)
+            assert isinstance(entry, FileMetadata)
+            return self._file_metadata_to_file_state(entry)
         except ApiError as err:
             if 'not_found' in str(err):
                 raise FileNotFoundProviderError(f'File not found at {full_path}') from err
