@@ -5,7 +5,7 @@ import uuid
 
 from sync.core import ProviderBase
 from sync.providers.sftp import STFPProvider
-from tests.test_provider_base import ProviderTestBase
+from tests.providers.test_provider_base import ProviderTestBase
 
 
 class SFTPProviderTest(ProviderTestBase):

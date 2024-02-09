@@ -12,11 +12,13 @@ from sync.provider import (
     ProviderError,
     FileNotFoundProviderError,
     FileAlreadyExistsError,
+    SafeUpdateSupportMixin,
+    ConflictError,
 )
 from sync.state import FileState, StorageState
 
 
-class DropboxProvider(ProviderBase):
+class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
     SUPPORTED_HASH_TYPES = [HashType.DROPBOX_SHA256]
 
     def __init__(self, account_id: str, token: str, root_dir: str,
@@ -106,7 +108,7 @@ class DropboxProvider(ProviderBase):
             )
         except ApiError as err:
             if 'not_found' in str(err):
-                raise FileNotFoundProviderError(f'File not found at {full_path}')
+                raise FileNotFoundProviderError(f'File not found at {full_path}') from err
             raise
 
     def read(self, path: str) -> BinaryIO:
@@ -117,15 +119,25 @@ class DropboxProvider(ProviderBase):
             return io.BytesIO(response.content)
         except ApiError as err:
             if 'not_found' in str(err):
-                raise FileNotFoundProviderError(f'File not found at {full_path}')
+                raise FileNotFoundProviderError(f'File not found at {full_path}') from err
             raise
 
-    # TODO: use "update" method that checks file revision to avoid lost update
     def write(self, path: str, content: BinaryIO) -> None:
         dbx = self._get_dropbox()
         full_path = self._get_full_path(path)
         file_bytes = content.read()
         dbx.files_upload(file_bytes, full_path, mode=WriteMode.overwrite)
+
+    def update(self, path: str, content: BinaryIO, revision: str) -> None:
+        dbx = self._get_dropbox()
+        full_path = self._get_full_path(path)
+        file_bytes = content.read()
+        try:
+            dbx.files_upload(file_bytes, full_path, mode=WriteMode.update(revision))
+        except ApiError as err:
+            raise ConflictError(
+                f'Can not update "{path}" due to conflict as revision tag does '
+                f'not match current state') from err
 
     def remove(self, path: str) -> None:
         dbx = self._get_dropbox()
@@ -134,7 +146,7 @@ class DropboxProvider(ProviderBase):
             dbx.files_delete_v2(full_path)
         except ApiError as err:
             if 'not_found' in str(err):
-                raise FileNotFoundProviderError(f'File not found at {full_path}')
+                raise FileNotFoundProviderError(f'File not found at {full_path}') from err
             raise
 
     def move(self, source_path: str, destination_path: str) -> None:
@@ -148,10 +160,10 @@ class DropboxProvider(ProviderBase):
         except ApiError as err:
             if 'not_found' in str(err):
                 raise FileNotFoundProviderError(
-                    f'File not found at {source_full_path}')
+                    f'File not found at {source_full_path}') from err
             elif 'conflict' in str(err):
                 raise FileAlreadyExistsError(
-                    f'File already exists at {destination_full_path}')
+                    f'File already exists at {destination_full_path}') from err
             raise
 
     def supported_hash_types(self) -> List[HashType]:

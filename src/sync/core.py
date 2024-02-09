@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import Dict, Optional, Callable
 
 from sync.hashing import hash_dict, hash_stream
-from sync.provider import ProviderBase
+from sync.provider import ProviderBase, SafeUpdateSupportMixin
 from sync.state import StorageState, SyncPairState
 
 LOGGER = logging.getLogger(__name__)
@@ -227,6 +227,18 @@ class Syncer:
         if dry_run:
             LOGGER.warning('dry run mode!')
 
+
+        def write(provider: ProviderBase, state: StorageState, path: str, stream: BinaryIO):
+            cur_file_state = state.files.get(path)
+            if cur_file_state and isinstance(provider, SafeUpdateSupportMixin):
+                LOGGER.debug(
+                    'updating file at %s with last known revision being %s checked',
+                    path, cur_file_state.revision)
+                provider.update(path, stream, revision=cur_file_state.revision)
+            else:  # either file is new or provider does not support concurrency safe update
+                provider.write(path, stream)
+
+
         for path, action in actions.items():
             LOGGER.info('%s %s', action, path)
 
@@ -235,11 +247,11 @@ class Syncer:
 
             if action == SyncAction.UPLOAD:
                 stream = self.src_provider.read(path)
-                self.dst_provider.write(path, stream)
+                write(self.dst_provider, dst_state, path, stream)
                 dst_state.files[path] = self.dst_provider.get_file_state(path)
             elif action == SyncAction.DOWNLOAD:
                 stream = self.dst_provider.read(path)
-                self.src_provider.write(path, stream)
+                write(self.src_provider, src_state, path, stream)
                 src_state.files[path] = self.src_provider.get_file_state(path)
             elif action == SyncAction.REMOVE_DST:
                 self.dst_provider.remove(path)

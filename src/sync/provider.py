@@ -17,6 +17,10 @@ class FileAlreadyExistsError(ProviderError):
     pass
 
 
+class ConflictError(ProviderError):
+    pass
+
+
 class ProviderBase(ABC):
     @abstractmethod
     def get_handle(self) -> str:
@@ -57,4 +61,13 @@ class ProviderBase(ABC):
 
     @abstractmethod
     def compute_hash(self, path: str, hash_type: HashType) -> str:
+        raise NotImplementedError
+
+
+class SafeUpdateSupportMixin:
+    @abstractmethod
+    def update(self, path: str, content: BinaryIO, revision: str) -> None:
+        """
+        Updates file by the given path checking for revision match before update.
+        """
         raise NotImplementedError

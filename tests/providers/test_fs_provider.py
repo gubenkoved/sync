@@ -4,7 +4,7 @@ import unittest
 
 from sync.core import ProviderBase
 from sync.providers.fs import FSProvider
-from tests.test_provider_base import ProviderTestBase
+from tests.providers.test_provider_base import ProviderTestBase
 
 
 class FSProviderTest(ProviderTestBase):

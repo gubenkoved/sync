@@ -29,6 +29,7 @@ LOGGER = logging.getLogger(__name__)
 #  both size and modification time is unchanged), this probably can be united with
 #  the other provider state
 # TODO: handle empty directories? git does not handle that...
+# TODO: add support for safe update
 class FSProvider(ProviderBase):
     BUFFER_SIZE = 4096
     SUPPORTED_HASH_TYPES = [HashType.SHA256, HashType.DROPBOX_SHA256]

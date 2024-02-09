@@ -9,6 +9,8 @@ from sync.provider import (
     ProviderBase,
     FileNotFoundProviderError,
     FileAlreadyExistsError,
+    SafeUpdateSupportMixin,
+    ProviderError,
 )
 from sync.state import StorageState
 
@@ -208,6 +210,38 @@ class ProviderTestBase(unittest.TestCase):
         state_after = provider.get_state()
 
         self.assert_storage_state_equal(state_before, state_after)
+
+    def test_safe_update_if_supported(self):
+        provider = self.get_provider()
+
+        if not isinstance(provider, SafeUpdateSupportMixin):
+            self.skipTest('not supported')
+
+        with bytes_as_stream(b'test') as stream:
+            provider.write('foo.file', stream)
+
+        file_state = provider.get_file_state('foo.file')
+
+        with bytes_as_stream(b'test2') as stream:
+            provider.update('foo.file', stream, file_state.revision)
+
+        # make sure update happened
+        with provider.read('foo.file') as stream:
+            self.assertEqual(
+                b'test2',
+                stream_to_bytes(stream)
+            )
+
+        # try update with outdated revision tag
+        def try_update():
+            with bytes_as_stream(b'test3') as stream:
+                provider.update('foo.file', stream, file_state.revision)
+
+        self.assertRaisesRegex(
+            ProviderError,
+            "conflict",
+            try_update,
+        )
 
 
 if __name__ == '__main__':
