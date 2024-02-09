@@ -4,7 +4,7 @@ import os.path
 import re
 from collections import Counter
 from enum import StrEnum
-from typing import Dict, Optional, Callable
+from typing import Dict, Optional, Callable, BinaryIO
 
 from sync.hashing import hash_dict, hash_stream
 from sync.provider import ProviderBase, SafeUpdateSupportMixin
@@ -227,17 +227,20 @@ class Syncer:
         if dry_run:
             LOGGER.warning('dry run mode!')
 
-
         def write(provider: ProviderBase, state: StorageState, path: str, stream: BinaryIO):
             cur_file_state = state.files.get(path)
-            if cur_file_state and isinstance(provider, SafeUpdateSupportMixin):
+            safe_update_supported = (
+                cur_file_state and
+                cur_file_state.revision and
+                isinstance(provider, SafeUpdateSupportMixin)
+            )
+            if safe_update_supported:
                 LOGGER.debug(
                     'updating file at %s with last known revision being %s checked',
                     path, cur_file_state.revision)
                 provider.update(path, stream, revision=cur_file_state.revision)
             else:  # either file is new or provider does not support concurrency safe update
                 provider.write(path, stream)
-
 
         for path, action in actions.items():
             LOGGER.info('%s %s', action, path)
