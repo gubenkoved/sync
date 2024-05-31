@@ -1,8 +1,5 @@
 import abc
-import io
-import os
 import unittest
-from typing import BinaryIO
 
 from sync.hashing import HashType
 from sync.provider import (
@@ -13,19 +10,7 @@ from sync.provider import (
     ProviderError,
 )
 from sync.state import StorageState
-
-
-def bytes_as_stream(data: bytes) -> BinaryIO:
-    return io.BytesIO(data)
-
-
-def random_bytes_stream(count: int) -> BinaryIO:
-    data = os.urandom(count)
-    return bytes_as_stream(data)
-
-
-def stream_to_bytes(stream: BinaryIO) -> bytes:
-    return stream.read()
+from tests.common import bytes_as_stream, stream_to_bytes
 
 
 class ProviderTestBase(unittest.TestCase):
@@ -77,6 +62,8 @@ class ProviderTestBase(unittest.TestCase):
 
     def test_write_nested(self):
         provider = self.get_provider()
+        state = provider.get_state()
+        self.assertEqual(0, len(state.files))
         with bytes_as_stream(b'test') as stream1:
             with bytes_as_stream(b'test2') as stream2:
                 provider.write('foo/bar/baz.file', stream1)

@@ -2,6 +2,7 @@ import logging
 import os.path
 import tempfile
 from typing import BinaryIO, List, Optional
+import shutil
 
 from sync.core import (
     SyncError,
@@ -52,6 +53,10 @@ class FSProvider(ProviderBase):
             'depth': self.depth,
         })
 
+    @staticmethod
+    def _unixify_path(path):
+        return path.replace('\\', '/')
+
     def get_state(self) -> StorageState:
         files = {}
 
@@ -65,6 +70,7 @@ class FSProvider(ProviderBase):
                 if entry.is_file():
                     abs_path = entry.path
                     rel_path = os.path.relpath(abs_path, self.root_dir)
+                    rel_path = self._unixify_path(rel_path)
                     files[rel_path] = FileState(
                         content_hash=self._file_hash(abs_path)
                     )
@@ -120,7 +126,7 @@ class FSProvider(ProviderBase):
                 temp_file.write(buffer)
 
         # now atomically move temp file
-        os.rename(temp_file.name, abs_path)
+        shutil.move(temp_file.name, abs_path)
 
     def remove(self, path: str):
         abs_path = self._abs_path(path)
@@ -138,9 +144,7 @@ class FSProvider(ProviderBase):
                 f'File already exists: {destination_path}')
 
         try:
-            # os.rename will silently overwrite if destination already
-            # exists!
-            os.rename(source_abs_path, destination_abs_path)
+            shutil.move(source_abs_path, destination_abs_path)
         except FileNotFoundError:
             raise FileNotFoundProviderError(f'File not found: {source_path}')
 
