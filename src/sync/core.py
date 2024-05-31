@@ -23,6 +23,8 @@ class StorageStateDiff:
     def __init__(self, changes: Dict[str, DiffType]):
         self.changes: Dict[str, DiffType] = changes
 
+    # TODO: detect "MOVED" diff as a change where file with the same hash is
+    #  removed in one location and appeared in another
     @staticmethod
     def compute(current: StorageState, baseline: StorageState) -> 'StorageStateDiff':
         changes = {}
@@ -51,6 +53,11 @@ def should_ignore(path: str):
     return filename.lower() in IGNORE_FILENAMES
 
 
+# TODO: Is it possible to simplify action into the action that is performed
+#  against a single provider; then split actions that syncer performs into
+#  "source actions" and "destination actions";
+#  Figure out how to encode actions like "resolve conflict" that span both
+#  providers;
 class SyncAction(StrEnum):
     DOWNLOAD = 'DOWNLOAD'
     UPLOAD = 'UPLOAD'
