@@ -1,5 +1,6 @@
 import abc
 import unittest
+import pytest
 
 from sync.hashing import HashType
 from sync.provider import (
@@ -10,7 +11,11 @@ from sync.provider import (
     ProviderError,
 )
 from sync.state import StorageState
-from tests.common import bytes_as_stream, stream_to_bytes
+from tests.common import (
+    bytes_as_stream,
+    stream_to_bytes,
+    random_bytes_stream,
+)
 
 
 class ProviderTestBase(unittest.TestCase):
@@ -229,6 +234,24 @@ class ProviderTestBase(unittest.TestCase):
             "conflict",
             try_update,
         )
+
+    @pytest.mark.slow
+    def test_create_and_delete_many_files(self):
+        provider = self.get_provider()
+
+        count = 128
+        for file_idx in range(count):
+            with random_bytes_stream(1024 * 1024) as data_stream:
+                provider.write('file_%s' % file_idx, data_stream)
+
+        state = provider.get_state()
+        self.assertEqual(count, len(state.files))
+
+        for file_idx in range(count):
+            provider.remove('file_%s' % file_idx)
+
+        state = provider.get_state()
+        self.assertEqual(0, len(state.files))
 
 
 if __name__ == '__main__':
