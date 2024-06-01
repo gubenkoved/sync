@@ -62,6 +62,8 @@ class StorageStateDiff:
             if path not in current.files:
                 changes[path] = RemovedDiffType(path)
 
+        LOGGER.debug('raw changes: %s', changes)
+
         # construct hash to paths for added and removed diff types
         added_removed_by_hash: Dict[str, List[DiffType]] = collections.defaultdict(list)
         for path, diff in changes.items():

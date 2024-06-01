@@ -1,3 +1,4 @@
+import os
 import shutil
 import tempfile
 
@@ -25,6 +26,9 @@ class FsToFsSyncTest(SyncTestBase):
             src_provider,
             dst_provider,
         )
+
+        state_file_path = self._syncer.get_state_file_path()
+        self.addCleanup(lambda: os.remove(state_file_path))
 
     @property
     def syncer(self):

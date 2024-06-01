@@ -156,11 +156,10 @@ class Syncer:
         return pair_handle
 
     def load_state(self) -> SyncPairState:
-        handle = self.get_state_handle()
-        abs_path = os.path.join(self.state_root_dir, handle)
-        if os.path.exists(abs_path):
-            LOGGER.debug('loading state from "%s"', abs_path)
-            with open(abs_path, 'rb') as f:
+        state_path = self.get_state_file_path()
+        if os.path.exists(state_path):
+            LOGGER.debug('loading state from "%s"', state_path)
+            with open(state_path, 'rb') as f:
                 return SyncPairState.load(f)
         LOGGER.warning('state file not found')
         return SyncPairState(
@@ -168,13 +167,23 @@ class Syncer:
             StorageState(),
         )
 
-    def save_state(self, state: SyncPairState):
+    def get_state_file_path(self):
         handle = self.get_state_handle()
-        abs_path = os.path.join(self.state_root_dir, handle)
-        with open(abs_path, 'wb') as f:
+        return os.path.join(self.state_root_dir, handle)
+
+    def save_state(self, state: SyncPairState):
+        with open(self.get_state_file_path(), 'wb') as f:
             return state.save(f)
 
     def compare(self, path: str) -> bool:
+        """
+        Compares files at given relative path between source and destination
+        providers. Note that direct comparison of content hash is not correct
+        as different profiles can be using different approaches to computing
+        the hash.
+
+        Returns boolean indicating if two files are identical.
+        """
         LOGGER.debug('comparing file at "%s" source vs. destination...', path)
 
         # see if we can compare hashes "remotely"
@@ -325,10 +334,14 @@ class Syncer:
                         'resolved conflict for "%s" as files identical', path)
             elif isinstance(action, MoveOnSourceSyncAction):
                 self.src_provider.move(action.path, action.new_path)
-                pass
+                src_state.files[action.new_path] = src_state.files[action.path]
+                src_state.files.pop(action.path)
             elif isinstance(action, MoveOnDestinationSyncAction):
                 self.dst_provider.move(action.path, action.new_path)
+                dst_state.files[action.new_path] = dst_state.files[action.path]
+                dst_state.files.pop(action.path)
             elif isinstance(action, NoopSyncAction):
+                # no action is needed
                 pass
             else:
                 raise NotImplementedError('action %s' % action)
@@ -339,8 +352,20 @@ class Syncer:
         else:
             LOGGER.info('no changes to sync')
 
+        # correctness check
+        if src_state.files != dst_state.files:
+            missing_on_dst = set(dst_state.files) - set(src_state.files)
+            missing_on_src = set(src_state.files) - set(dst_state.files)
+            raise SyncError(
+                'Unknown correctness error detected! '
+                'Missing on source: %s, missing on destination: %s' % (
+                    missing_on_src, missing_on_dst,
+                ))
+
         if not dry_run:
             LOGGER.debug('saving state')
+            LOGGER.debug('src state: %s', src_state.files)
+            LOGGER.debug('dst state: %s', dst_state.files)
             self.save_state(SyncPairState(
                 src_state,
                 dst_state,
