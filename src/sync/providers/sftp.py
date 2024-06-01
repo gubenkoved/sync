@@ -22,6 +22,7 @@ from sync.state import (
 LOGGER = logging.getLogger(__name__)
 
 
+# TODO: support platform independency here (like connecting to Unix on Windows)
 class STFPProvider(ProviderBase):
     SUPPORTED_HASH_TYPES = [HashType.SHA256]
 
