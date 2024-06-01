@@ -1,5 +1,5 @@
 import io
-import os.path
+import logging
 from typing import BinaryIO, Optional, List
 
 import dropbox
@@ -15,7 +15,12 @@ from sync.provider import (
     SafeUpdateSupportMixin,
     ConflictError,
 )
+from sync.providers.common import (
+    path_join, relative_path,
+)
 from sync.state import FileState, StorageState
+
+LOGGER = logging.getLogger(__name__)
 
 
 class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
@@ -60,11 +65,18 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         return self._dropbox
 
     def _get_full_path(self, path: str):
-        full_path = os.path.join(self.root_dir, path)
-        full_path = os.path.abspath(full_path)
+        full_path = path_join(self.root_dir, path)
         if not full_path.startswith(self.root_dir):
             raise ProviderError('Path outside of the root dir!')
         return full_path
+
+    def _ensure_root_dir(self, dbx: dropbox.Dropbox):
+        try:
+            dbx.files_list_folder(self.root_dir, limit=1)
+        except ApiError as err:
+            if 'not_found' in str(err):
+                LOGGER.info('root directory was not found -> create')
+                dbx.files_create_folder_v2(self.root_dir)
 
     def _list_folder(self, dbx: dropbox.Dropbox, path: str):
         entries = []
@@ -93,10 +105,12 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
                 if isinstance(entry, FileMetadata):
                     full_path = entry.path_display
                     assert full_path.startswith(self.root_dir)
-                    rel_path = os.path.relpath(full_path, self.root_dir)
+                    rel_path = relative_path(full_path, self.root_dir)
                     files[rel_path] = self._file_metadata_to_file_state(entry)
                 elif isinstance(entry, FolderMetadata):
                     walk(entry.path_display, depth+1)
+
+        self._ensure_root_dir(dbx)
         walk(self.root_dir, depth=1)
         return StorageState(files)
 

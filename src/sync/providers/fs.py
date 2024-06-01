@@ -21,6 +21,9 @@ from sync.state import (
     StorageState,
     FileState,
 )
+from sync.providers.common import (
+    unixify_path,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -53,10 +56,6 @@ class FSProvider(ProviderBase):
             'depth': self.depth,
         })
 
-    @staticmethod
-    def _unixify_path(path):
-        return path.replace('\\', '/')
-
     def get_state(self) -> StorageState:
         files = {}
 
@@ -70,7 +69,7 @@ class FSProvider(ProviderBase):
                 if entry.is_file():
                     abs_path = entry.path
                     rel_path = os.path.relpath(abs_path, self.root_dir)
-                    rel_path = self._unixify_path(rel_path)
+                    rel_path = unixify_path(rel_path)
                     files[rel_path] = FileState(
                         content_hash=self._file_hash(abs_path)
                     )
