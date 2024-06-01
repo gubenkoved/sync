@@ -18,17 +18,22 @@ from sync.state import (
     StorageState,
     FileState,
 )
+from sync.providers.common import (
+    path_join, relative_path, path_split,
+)
 
 LOGGER = logging.getLogger(__name__)
 
 
-# TODO: support platform independency here (like connecting to Unix on Windows)
 class STFPProvider(ProviderBase):
     SUPPORTED_HASH_TYPES = [HashType.SHA256]
 
     def __init__(self, host: str, username: str, root_dir: str,
                  password: Optional[str] = None, key_path: Optional[str] = None,
                  port: int = 22, depth: Optional[int] = None):
+        """
+        Implements SFTP provider with Unix as a target platform only.
+        """
         self.host = host
         self.username = username
         self.root_dir = root_dir
@@ -102,8 +107,8 @@ class STFPProvider(ProviderBase):
                 is_file = S_ISREG(entry.st_mode)
 
                 filename = entry.filename
-                full_path = os.path.join(dir_path, filename)
-                rel_path = os.path.relpath(full_path, self.root_dir)
+                full_path = path_join(dir_path, filename)
+                rel_path = relative_path(full_path, self.root_dir)
 
                 if is_file:
                     files[rel_path] = self._file_state(ssh, full_path)
@@ -112,7 +117,7 @@ class STFPProvider(ProviderBase):
                     dirs.append(filename)
 
             for dir_name in dirs:
-                walk(os.path.join(dir_path, dir_name), depth=depth + 1)
+                walk(path_join(dir_path, dir_name), depth=depth + 1)
 
         with ssh, sftp:
             walk(self.root_dir, depth=1)
@@ -120,8 +125,7 @@ class STFPProvider(ProviderBase):
         return StorageState(files)
 
     def _full_path(self, path):
-        full_path = os.path.join(self.root_dir, path)
-        full_path = os.path.abspath(full_path)
+        full_path = path_join(self.root_dir, path)
         if not full_path.startswith(self.root_dir):
             raise ProviderError('Path outside of the root dir!')
         return full_path
@@ -131,7 +135,7 @@ class STFPProvider(ProviderBase):
         full_path = self._full_path(path)
 
         with ssh, sftp:
-            dir_path, filename = os.path.split(full_path)
+            dir_path, filename = path_split(full_path)
             try:
                 sftp.chdir(dir_path)
                 entry = sftp.lstat(filename)
@@ -171,7 +175,7 @@ class STFPProvider(ProviderBase):
     def write(self, path: str, content: BinaryIO) -> None:
         ssh, sftp = self._connect()
         full_path = self._full_path(path)
-        dir_path, _ = os.path.split(full_path)
+        dir_path, _ = path_split(full_path)
         self._ensure_dir(ssh, dir_path)
         with ssh, sftp:
             sftp.putfo(content, full_path)
@@ -213,6 +217,6 @@ class STFPProvider(ProviderBase):
     def compute_hash(self, path: str, hash_type: HashType) -> str:
         if hash_type == HashType.SHA256:
             ssh, sftp = self._connect()
-            full_path = os.path.join(self.root_dir, path)
+            full_path = path_join(self.root_dir, path)
             return self._sha256_file(ssh, full_path)
         raise Exception('not supported')

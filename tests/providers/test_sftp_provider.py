@@ -17,6 +17,7 @@ class SFTPProviderTest(ProviderTestBase):
         self.provider = STFPProvider(
             root_dir=root_dir,
             host=os.environ['SFTP_HOST'],
+            port=int(os.environ.get('SFTP_PORT', '22')),
             username=os.environ['SFTP_USERNAME'],
             key_path=os.environ['SFTP_KEY_PATH'],
         )
