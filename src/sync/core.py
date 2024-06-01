@@ -4,7 +4,7 @@ import logging
 import os.path
 import re
 from collections import Counter
-from typing import Dict, Optional, Callable, BinaryIO, Tuple
+from typing import Dict, Optional, Callable, BinaryIO, Tuple, List
 
 from sync.diff import (
     DiffType, AddedDiffType, ChangedDiffType, RemovedDiffType, MovedDiffType,
@@ -35,6 +35,11 @@ class SyncAction(abc.ABC):
 
     def __repr__(self):
         return '%s("%s")' % (self.__class__.__name__, self.path)
+
+    def __eq__(self, other):
+        if not isinstance(other, SyncAction):
+            return False
+        return self.path == other.path
 
 
 class DownloadSyncAction(SyncAction):
@@ -68,6 +73,9 @@ class MoveOnSourceSyncAction(SyncAction):
         return '%s("%s", "%s")' % (
             self.__class__.__name__, self.path, self.new_path)
 
+    def __eq__(self, other):
+        return self.path == other.path and self.new_path == other.new_path
+
 
 class MoveOnDestinationSyncAction(SyncAction):
     TYPE = 'MOVE_DST'
@@ -79,6 +87,9 @@ class MoveOnDestinationSyncAction(SyncAction):
     def __repr__(self):
         return '%s("%s", "%s")' % (
             self.__class__.__name__, self.path, self.new_path)
+
+    def __eq__(self, other):
+        return self.path == other.path and self.new_path == other.new_path
 
 
 class NoopSyncAction(SyncAction):
@@ -189,7 +200,7 @@ class Syncer:
 
         return src_hash == dst_hash
 
-    def sync(self, dry_run: bool = False):
+    def sync(self, dry_run: bool = False) -> List[SyncAction]:
         LOGGER.debug('starting sync...')
 
         pair_state = self.load_state()
@@ -224,9 +235,9 @@ class Syncer:
         # ADDED/REMOVED combination means that we saw the file on destination, but
         # why it is ADDED on source then? It means we did not download it
         action_matrix: Dict[Tuple[DiffType | None, DiffType | None], Callable[[DiffType, DiffType], SyncAction]] = {
-            (None, AddedDiffType): lambda src, dst: DownloadSyncAction(src.path),
-            (None, RemovedDiffType): lambda src, dst: RemoveOnSourceSyncAction(src.path),
-            (None, ChangedDiffType): lambda src, dst: DownloadSyncAction(src.path),
+            (None, AddedDiffType): lambda src, dst: DownloadSyncAction(dst.path),
+            (None, RemovedDiffType): lambda src, dst: RemoveOnSourceSyncAction(dst.path),
+            (None, ChangedDiffType): lambda src, dst: DownloadSyncAction(dst.path),
             (AddedDiffType, None): lambda src, dst: UploadSyncAction(src.path),
             (RemovedDiffType, None): lambda src, dst: RemoveOnDestinationSyncAction(src.path),
             (ChangedDiffType, None): lambda src, dst: UploadSyncAction(src.path),
@@ -280,7 +291,7 @@ class Syncer:
                 provider.write(path, stream)
 
         for path, action in actions.items():
-            LOGGER.info('%s %s', action, path)
+            LOGGER.info('Apply %s', action)
 
             if dry_run:
                 continue
@@ -334,3 +345,5 @@ class Syncer:
                 src_state,
                 dst_state,
             ))
+
+        return list(actions.values())
