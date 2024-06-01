@@ -12,6 +12,12 @@ class FileState:
         return 'FileState(hash="%s", revision="%s")>' % (
             self.content_hash, self.revision)
 
+    def __eq__(self, other):
+        if not isinstance(other, FileState):
+            return False
+        return (self.content_hash == other.content_hash and
+                self.revision == other.revision)
+
 
 class StorageState:
     def __init__(self, files: Dict[str, FileState] = None):
@@ -19,6 +25,11 @@ class StorageState:
 
     def __repr__(self):
         return '<StorageState %s files>' % len(self.files)
+
+    def __eq__(self, other):
+        if not isinstance(other, StorageState):
+            return False
+        return self.files == other.files
 
 
 class SyncPairState:

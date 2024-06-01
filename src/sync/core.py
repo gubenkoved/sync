@@ -7,7 +7,7 @@ from collections import Counter
 from typing import Dict, Optional, Callable, BinaryIO, Tuple
 
 from sync.diff import (
-    DiffType, AddedDiffType, ChangedDiffType, RemovedDiffType,
+    DiffType, AddedDiffType, ChangedDiffType, RemovedDiffType, MovedDiffType,
     StorageStateDiff,
 )
 from sync.hashing import hash_dict, hash_stream
@@ -164,9 +164,9 @@ class Syncer:
             return state.save(f)
 
     def compare(self, path: str) -> bool:
-        LOGGER.debug('comparing "%s" source vs. destination...', path)
+        LOGGER.debug('comparing file at "%s" source vs. destination...', path)
 
-        # see if we can compare hashses "remotely"
+        # see if we can compare hashes "remotely"
         shared_hash_types = (
             set(self.src_provider.supported_hash_types()) &
             set(self.dst_provider.supported_hash_types()))
@@ -190,6 +190,8 @@ class Syncer:
         return src_hash == dst_hash
 
     def sync(self, dry_run: bool = False):
+        LOGGER.debug('starting sync...')
+
         pair_state = self.load_state()
 
         src_state_snapshot = pair_state.source_state
@@ -231,6 +233,9 @@ class Syncer:
             (AddedDiffType, AddedDiffType): lambda src_diff, dst_diff: ResolveConflictSyncAction(src_diff.path),
             (ChangedDiffType, ChangedDiffType): lambda src_diff, dst_diff: ResolveConflictSyncAction(src_diff.path),
             (RemovedDiffType, RemovedDiffType): lambda src_diff, dst_diff: NoopSyncAction(src_diff.path),
+
+            (None, MovedDiffType): lambda src_diff, dst_diff: MoveOnSourceSyncAction(dst_diff.path, dst_diff.new_path),
+            (MovedDiffType, None): lambda src_diff, dst_diff: MoveOnDestinationSyncAction(src_diff.path, src_diff.new_path),
         }
 
         # process both source and destination changes
@@ -306,6 +311,11 @@ class Syncer:
                 else:
                     LOGGER.debug(
                         'resolved conflict for "%s" as files identical', path)
+            elif isinstance(action, MoveOnSourceSyncAction):
+                self.src_provider.move(action.path, action.new_path)
+                pass
+            elif isinstance(action, MoveOnDestinationSyncAction):
+                self.dst_provider.move(action.path, action.new_path)
             elif isinstance(action, NoopSyncAction):
                 pass
             else:

@@ -9,7 +9,9 @@ from tests.sync.test_sync import SyncTestBase
 class FsToFsSyncTest(SyncTestBase):
     __test__ = True
 
-    def get_syncer(self) -> Syncer:
+    def setUp(self):
+        super().setUp()
+
         src_dir = tempfile.mkdtemp()
         dst_dir = tempfile.mkdtemp()
 
@@ -19,7 +21,11 @@ class FsToFsSyncTest(SyncTestBase):
         self.addCleanup(lambda: shutil.rmtree(src_dir))
         self.addCleanup(lambda: shutil.rmtree(dst_dir))
 
-        return Syncer(
+        self._syncer = Syncer(
             src_provider,
             dst_provider,
         )
+
+    @property
+    def syncer(self):
+        return self._syncer

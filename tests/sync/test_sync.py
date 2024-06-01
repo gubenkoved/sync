@@ -1,3 +1,4 @@
+import abc
 from abc import abstractmethod
 from unittest import TestCase
 
@@ -10,42 +11,51 @@ from tests.common import bytes_as_stream, stream_to_bytes
 class SyncTestBase(TestCase):
     __test__ = False
 
-    @abstractmethod
-    def get_syncer(self) -> Syncer:
+    @property
+    @abc.abstractmethod
+    def syncer(self):
         raise NotImplementedError
 
-    def test_sync_new_files(self):
-        syncer = self.get_syncer()
-        src_provider = syncer.src_provider
-        dst_provider = syncer.dst_provider
+    def ensure_same_state(self):
+        src_state = self.syncer.src_provider.get_state()
+        dst_state = self.syncer.dst_provider.get_state()
 
-        syncer.sync()
+        self.assertEqual(src_state, dst_state)
+
+    def do_sync(self):
+        self.syncer.sync()
+        self.ensure_same_state()
+
+    def test_sync_new_files(self):
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
+
+        self.do_sync()
 
         self.assertEqual(0, len(dst_provider.get_state().files))
 
         with bytes_as_stream(b'data') as stream:
             src_provider.write('foo', stream)
 
-        syncer.sync()
+        self.do_sync()
 
         self.assertEqual(1, len(dst_provider.get_state().files))
 
         with bytes_as_stream(b'data') as stream:
             src_provider.write('bar', stream)
 
-        syncer.sync()
+        self.do_sync()
 
         self.assertEqual(2, len(dst_provider.get_state().files))
 
     def test_sync_updated_files(self):
-        syncer = self.get_syncer()
-        src_provider = syncer.src_provider
-        dst_provider = syncer.dst_provider
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
 
         with bytes_as_stream(b'data') as stream:
             src_provider.write('foo', stream)
 
-        syncer.sync()
+        self.do_sync()
 
         self.assertEqual(
             b'data',
@@ -55,7 +65,7 @@ class SyncTestBase(TestCase):
         with bytes_as_stream(b'updated') as stream:
             src_provider.write('foo', stream)
 
-        syncer.sync()
+        self.do_sync()
 
         self.assertEqual(
             b'updated',
@@ -63,9 +73,8 @@ class SyncTestBase(TestCase):
         )
 
     def test_sync_deleted_files(self):
-        syncer = self.get_syncer()
-        src_provider = syncer.src_provider
-        dst_provider = syncer.dst_provider
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
 
         with bytes_as_stream(b'data') as stream:
             src_provider.write('foo', stream)
@@ -73,45 +82,43 @@ class SyncTestBase(TestCase):
         with bytes_as_stream(b'data') as stream:
             src_provider.write('bar', stream)
 
-        syncer.sync()
+        self.do_sync()
 
         self.assertEqual(2, len(dst_provider.get_state().files))
 
         src_provider.remove('foo')
 
-        syncer.sync()
+        self.do_sync()
 
         self.assertEqual(1, len(dst_provider.get_state().files))
 
         src_provider.remove('bar')
 
-        syncer.sync()
+        self.do_sync()
 
         self.assertEqual(0, len(dst_provider.get_state().files))
 
     def test_sync_moved_files(self):
-        syncer = self.get_syncer()
-        src_provider = syncer.src_provider
-        dst_provider = syncer.dst_provider
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
 
         with bytes_as_stream(b'data') as stream:
             src_provider.write('foo', stream)
 
-        syncer.sync()
+        self.do_sync()
 
         self.assertEqual(1, len(dst_provider.get_state().files))
 
         # move the file
         src_provider.move('foo', 'bar')
 
-        syncer.sync()
+        self.do_sync()
 
         self.assertEqual(1, len(dst_provider.get_state().files))
 
     def test_conflicting_updates(self):
-        syncer = self.get_syncer()
-        src_provider = syncer.src_provider
-        dst_provider = syncer.dst_provider
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
 
         with bytes_as_stream(b'data') as stream:
             src_provider.write('foo', stream)
@@ -120,7 +127,7 @@ class SyncTestBase(TestCase):
             dst_provider.write('foo', stream)
 
         # no errors
-        syncer.sync()
+        self.do_sync()
 
 
 if __name__ == '__main__':
