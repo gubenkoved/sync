@@ -33,6 +33,9 @@ class SyncAction(abc.ABC):
     def __init__(self, path):
         self.path = path
 
+    def __repr__(self):
+        return '%s("%s")' % (self.__class__.__name__, self.path)
+
 
 class DownloadSyncAction(SyncAction):
     TYPE = 'DOWNLOAD'
@@ -61,6 +64,10 @@ class MoveOnSourceSyncAction(SyncAction):
         super().__init__(path)
         self.new_path = new_path
 
+    def __repr__(self):
+        return '%s("%s", "%s")' % (
+            self.__class__.__name__, self.path, self.new_path)
+
 
 class MoveOnDestinationSyncAction(SyncAction):
     TYPE = 'MOVE_DST'
@@ -68,6 +75,10 @@ class MoveOnDestinationSyncAction(SyncAction):
     def __init__(self, path, new_path):
         super().__init__(path)
         self.new_path = new_path
+
+    def __repr__(self):
+        return '%s("%s", "%s")' % (
+            self.__class__.__name__, self.path, self.new_path)
 
 
 class NoopSyncAction(SyncAction):
