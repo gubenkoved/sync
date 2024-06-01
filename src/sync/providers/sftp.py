@@ -50,6 +50,9 @@ class STFPProvider(ProviderBase):
         if self.key_path:
             self.key_path = os.path.expanduser(self.key_path)
 
+        self.__ssh_client = None
+        self.__sftp_client = None
+
     def get_handle(self) -> str:
         return 'sftp-' + hash_dict({
             'host': self.host,
@@ -57,19 +60,31 @@ class STFPProvider(ProviderBase):
             'depth': self.depth,
         })
 
+    def _need_reconnect(self) -> bool:
+        if self.__ssh_client is None:
+            return True
+
+        if self.__ssh_client.get_transport() is None:
+            return True
+
+        return False
+
     def _connect(self) -> Tuple[paramiko.SSHClient, paramiko.SFTPClient]:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        if self._need_reconnect():
+            LOGGER.info('connecting to SSH server...')
+            self.__ssh_client = paramiko.SSHClient()
+            self.__ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-        ssh.connect(
-            self.host,
-            username=self.username,
-            password=self.password,
-            key_filename=self.key_path,
-            port=self.port)
+            self.__ssh_client.connect(
+                self.host,
+                username=self.username,
+                password=self.password,
+                key_filename=self.key_path,
+                port=self.port)
 
-        sftp = ssh.open_sftp()
-        return ssh, sftp
+            self.__sftp_client = self.__ssh_client.open_sftp()
+
+        return self.__ssh_client, self.__sftp_client
 
     @staticmethod
     def _sha256_file(ssh: paramiko.SSHClient, full_path: str):
@@ -119,8 +134,8 @@ class STFPProvider(ProviderBase):
             for dir_name in dirs:
                 walk(path_join(dir_path, dir_name), depth=depth + 1)
 
-        with ssh, sftp:
-            walk(self.root_dir, depth=1)
+        self._ensure_dir(ssh, self.root_dir)
+        walk(self.root_dir, depth=1)
 
         return StorageState(files)
 
@@ -134,28 +149,26 @@ class STFPProvider(ProviderBase):
         ssh, sftp = self._connect()
         full_path = self._full_path(path)
 
-        with ssh, sftp:
-            dir_path, filename = path_split(full_path)
-            try:
-                sftp.chdir(dir_path)
-                entry = sftp.lstat(filename)
-                assert S_ISREG(entry.st_mode)
-                return self._file_state(ssh, full_path)
-            except FileNotFoundError:
-                raise FileNotFoundProviderError(f'File not found: {full_path}')
+        dir_path, filename = path_split(full_path)
+        try:
+            sftp.chdir(dir_path)
+            entry = sftp.lstat(filename)
+            assert S_ISREG(entry.st_mode)
+            return self._file_state(ssh, full_path)
+        except FileNotFoundError:
+            raise FileNotFoundProviderError(f'File not found: {full_path}')
 
     def read(self, path: str) -> BinaryIO:
         ssh, sftp = self._connect()
         full_path = self._full_path(path)
 
-        with ssh, sftp:
-            buffer = io.BytesIO()
-            try:
-                sftp.getfo(full_path, buffer)
-                buffer.seek(0)
-                return buffer
-            except FileNotFoundError:
-                raise FileNotFoundProviderError(f'File not found: {full_path}')
+        buffer = io.BytesIO()
+        try:
+            sftp.getfo(full_path, buffer)
+            buffer.seek(0)
+            return buffer
+        except FileNotFoundError:
+            raise FileNotFoundProviderError(f'File not found: {full_path}')
 
     def _ensure_dir(self, ssh: paramiko.SSHClient, dir_path: str) -> None:
         stdin, stdout, stderr = ssh.exec_command(
@@ -177,39 +190,36 @@ class STFPProvider(ProviderBase):
         full_path = self._full_path(path)
         dir_path, _ = path_split(full_path)
         self._ensure_dir(ssh, dir_path)
-        with ssh, sftp:
-            sftp.putfo(content, full_path)
+        sftp.putfo(content, full_path)
 
     def remove(self, path: str) -> None:
         ssh, sftp = self._connect()
         full_path = self._full_path(path)
-        with ssh, sftp:
-            try:
-                sftp.remove(full_path)
-            except FileNotFoundError:
-                raise FileNotFoundProviderError(f'File not found: {full_path}')
+        try:
+            sftp.remove(full_path)
+        except FileNotFoundError:
+            raise FileNotFoundProviderError(f'File not found: {full_path}')
 
     def move(self, source_path: str, destination_path: str) -> None:
         ssh, sftp = self._connect()
         source_full_path = self._full_path(source_path)
         destination_full_path = self._full_path(destination_path)
 
-        with ssh, sftp:
-            try:
-                sftp.lstat(destination_full_path)
-                destination_exists = True
-            except FileNotFoundError:
-                destination_exists = False
+        try:
+            sftp.lstat(destination_full_path)
+            destination_exists = True
+        except FileNotFoundError:
+            destination_exists = False
 
-            if destination_exists:
-                raise FileAlreadyExistsError(
-                    f'File already exists: {destination_full_path}')
+        if destination_exists:
+            raise FileAlreadyExistsError(
+                f'File already exists: {destination_full_path}')
 
-            try:
-                sftp.rename(source_full_path, destination_full_path)
-            except FileNotFoundError:
-                raise FileNotFoundProviderError(
-                    f'File not found: {source_full_path}')
+        try:
+            sftp.rename(source_full_path, destination_full_path)
+        except FileNotFoundError:
+            raise FileNotFoundProviderError(
+                f'File not found: {source_full_path}')
 
     def supported_hash_types(self) -> List[HashType]:
         return self.SUPPORTED_HASH_TYPES
