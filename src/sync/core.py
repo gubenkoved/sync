@@ -224,18 +224,19 @@ class Syncer:
         # ADDED/REMOVED combination means that we saw the file on destination, but
         # why it is ADDED on source then? It means we did not download it
         action_matrix: Dict[Tuple[DiffType | None, DiffType | None], Callable[[DiffType, DiffType], SyncAction]] = {
-            (None, AddedDiffType): lambda src_diff, dst_diff: DownloadSyncAction(src_diff.path),
-            (None, RemovedDiffType): lambda src_diff, dst_diff: RemoveOnSourceSyncAction(src_diff.path),
-            (None, ChangedDiffType): lambda src_diff, dst_diff: DownloadSyncAction(src_diff.path),
-            (AddedDiffType, None): lambda src_diff, dst_diff: UploadSyncAction(src_diff.path),
-            (RemovedDiffType, None): lambda src_diff, dst_diff: RemoveOnDestinationSyncAction(src_diff.path),
-            (ChangedDiffType, None): lambda src_diff, dst_diff: UploadSyncAction(src_diff.path),
-            (AddedDiffType, AddedDiffType): lambda src_diff, dst_diff: ResolveConflictSyncAction(src_diff.path),
-            (ChangedDiffType, ChangedDiffType): lambda src_diff, dst_diff: ResolveConflictSyncAction(src_diff.path),
-            (RemovedDiffType, RemovedDiffType): lambda src_diff, dst_diff: NoopSyncAction(src_diff.path),
+            (None, AddedDiffType): lambda src, dst: DownloadSyncAction(src.path),
+            (None, RemovedDiffType): lambda src, dst: RemoveOnSourceSyncAction(src.path),
+            (None, ChangedDiffType): lambda src, dst: DownloadSyncAction(src.path),
+            (AddedDiffType, None): lambda src, dst: UploadSyncAction(src.path),
+            (RemovedDiffType, None): lambda src, dst: RemoveOnDestinationSyncAction(src.path),
+            (ChangedDiffType, None): lambda src, dst: UploadSyncAction(src.path),
+            (AddedDiffType, AddedDiffType): lambda src, dst: ResolveConflictSyncAction(src.path),
+            (ChangedDiffType, ChangedDiffType): lambda src, dst: ResolveConflictSyncAction(src.path),
+            (RemovedDiffType, RemovedDiffType): lambda src, dst: NoopSyncAction(src.path),
 
-            (None, MovedDiffType): lambda src_diff, dst_diff: MoveOnSourceSyncAction(dst_diff.path, dst_diff.new_path),
-            (MovedDiffType, None): lambda src_diff, dst_diff: MoveOnDestinationSyncAction(src_diff.path, src_diff.new_path),
+            # movements handling
+            (None, MovedDiffType): lambda src, dst: MoveOnSourceSyncAction(dst.path, dst.new_path),
+            (MovedDiffType, None): lambda src, dst: MoveOnDestinationSyncAction(src.path, src.new_path),
         }
 
         # process both source and destination changes
