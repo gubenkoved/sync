@@ -1,10 +1,10 @@
+import abc
 import fnmatch
 import logging
 import os.path
 import re
 from collections import Counter
-from enum import StrEnum
-from typing import Dict, Optional, Callable, BinaryIO
+from typing import Dict, Optional, Callable, BinaryIO, Tuple
 
 from sync.hashing import hash_dict, hash_stream
 from sync.provider import ProviderBase, SafeUpdateSupportMixin
@@ -13,10 +13,31 @@ from sync.state import StorageState, SyncPairState
 LOGGER = logging.getLogger(__name__)
 
 
-class DiffType(StrEnum):
-    ADDED = 'added'
-    REMOVED = 'removed'
-    CHANGED = 'changed'
+class DiffType(abc.ABC):
+    TYPE = None
+
+    def __init__(self, path):
+        self.path = path
+
+
+class AddedDiffType(DiffType):
+    TYPE = 'ADDED'
+
+
+class RemovedDiffType(DiffType):
+    TYPE = 'REMOVED'
+
+
+class ChangedDiffType(DiffType):
+    TYPE = 'CHANGED'
+
+
+class MovedDiffType(DiffType):
+    TYPE = 'MOVED'
+
+    def __init__(self, path, new_path):
+        super().__init__(path)
+        self.new_path = new_path
 
 
 class StorageStateDiff:
@@ -31,14 +52,14 @@ class StorageStateDiff:
 
         for path, state in current.files.items():
             if path not in baseline.files:
-                changes[path] = DiffType.ADDED
+                changes[path] = AddedDiffType(path)
             else:
                 if state.content_hash != baseline.files[path].content_hash:
-                    changes[path] = DiffType.CHANGED
+                    changes[path] = ChangedDiffType(path)
 
         for path in baseline.files:
             if path not in current.files:
-                changes[path] = DiffType.REMOVED
+                changes[path] = RemovedDiffType(path)
 
         return StorageStateDiff(changes)
 
@@ -53,18 +74,51 @@ def should_ignore(path: str):
     return filename.lower() in IGNORE_FILENAMES
 
 
-# TODO: Is it possible to simplify action into the action that is performed
-#  against a single provider; then split actions that syncer performs into
-#  "source actions" and "destination actions";
-#  Figure out how to encode actions like "resolve conflict" that span both
-#  providers;
-class SyncAction(StrEnum):
-    DOWNLOAD = 'DOWNLOAD'
-    UPLOAD = 'UPLOAD'
-    REMOVE_SRC = 'REMOVE_SRC'
-    REMOVE_DST = 'REMOVE_DST'
-    RESOLVE_CONFLICT = 'RESOLVE_CONFLICT'
-    NOOP = 'NOOP'
+class SyncAction(abc.ABC):
+    TYPE = None
+
+    def __init__(self, path):
+        self.path = path
+
+
+class DownloadSyncAction(SyncAction):
+    TYPE = 'DOWNLOAD'
+
+
+class UploadSyncAction(SyncAction):
+    TYPE = 'UPLOAD'
+
+
+class RemoveOnSourceSyncAction(SyncAction):
+    TYPE = 'REMOVE_SRC'
+
+
+class RemoveOnDestinationSyncAction(SyncAction):
+    TYPE = 'REMOVE_DST'
+
+
+class ResolveConflictSyncAction(SyncAction):
+    TYPE = 'RESOLVE_CONFLICT'
+
+
+class MoveOnSourceSyncAction(SyncAction):
+    TYPE = 'MOVE_SRC'
+
+    def __init__(self, path, new_path):
+        super().__init__(path)
+        self.new_path = new_path
+
+
+class MoveOnDestinationSyncAction(SyncAction):
+    TYPE = 'MOVE_DST'
+
+    def __init__(self, path, new_path):
+        super().__init__(path)
+        self.new_path = new_path
+
+
+class NoopSyncAction(SyncAction):
+    TYPE = 'NOOP'
 
 
 class SyncError(Exception):
@@ -192,44 +246,48 @@ class Syncer:
             src_state = filter_state(src_state, filter_matcher)
             dst_state = filter_state(dst_state, filter_matcher)
 
-        src_diff = StorageStateDiff.compute(src_state, src_state_snapshot)
-        dst_diff = StorageStateDiff.compute(dst_state, dst_state_snapshot)
+        src_full_diff = StorageStateDiff.compute(src_state, src_state_snapshot)
+        dst_full_diff = StorageStateDiff.compute(dst_state, dst_state_snapshot)
 
         LOGGER.debug('source changes: %s', {
-            path: str(diff) for path, diff in src_diff.changes.items()})
+            path: str(diff) for path, diff in src_full_diff.changes.items()})
         LOGGER.debug('dest changes: %s', {
-            path: str(diff) for path, diff in dst_diff.changes.items()})
+            path: str(diff) for path, diff in dst_full_diff.changes.items()})
 
         # some combinations are not possible w/o corrupted state like
         # ADDED/REMOVED combination means that we saw the file on destination, but
         # why it is ADDED on source then? It means we did not download it
-        action_matrix = {
-            (None, DiffType.ADDED): SyncAction.DOWNLOAD,
-            (None, DiffType.REMOVED): SyncAction.REMOVE_SRC,
-            (None, DiffType.CHANGED): SyncAction.DOWNLOAD,
-            (DiffType.ADDED, None): SyncAction.UPLOAD,
-            (DiffType.REMOVED, None): SyncAction.REMOVE_DST,
-            (DiffType.CHANGED, None): SyncAction.UPLOAD,
-            (DiffType.ADDED, DiffType.ADDED): SyncAction.RESOLVE_CONFLICT,
-            (DiffType.CHANGED, DiffType.CHANGED): SyncAction.RESOLVE_CONFLICT,
-            (DiffType.REMOVED, DiffType.REMOVED): SyncAction.NOOP,
+        action_matrix: Dict[Tuple[DiffType | None, DiffType | None], Callable[[DiffType, DiffType], SyncAction]] = {
+            (None, AddedDiffType): lambda src_diff, dst_diff: DownloadSyncAction(src_diff.path),
+            (None, RemovedDiffType): lambda src_diff, dst_diff: RemoveOnSourceSyncAction(src_diff.path),
+            (None, ChangedDiffType): lambda src_diff, dst_diff: DownloadSyncAction(src_diff.path),
+            (AddedDiffType, None): lambda src_diff, dst_diff: UploadSyncAction(src_diff.path),
+            (RemovedDiffType, None): lambda src_diff, dst_diff: RemoveOnDestinationSyncAction(src_diff.path),
+            (ChangedDiffType, None): lambda src_diff, dst_diff: UploadSyncAction(src_diff.path),
+            (AddedDiffType, AddedDiffType): lambda src_diff, dst_diff: ResolveConflictSyncAction(src_diff.path),
+            (ChangedDiffType, ChangedDiffType): lambda src_diff, dst_diff: ResolveConflictSyncAction(src_diff.path),
+            (RemovedDiffType, RemovedDiffType): lambda src_diff, dst_diff: NoopSyncAction(src_diff.path),
         }
 
-        # process remote changes
-        changed_files = set(dst_diff.changes) | set(src_diff.changes)
+        # process both source and destination changes
+        changed_files = set(src_full_diff.changes) | set(dst_full_diff.changes)
 
-        actions = {}
+        actions: Dict[str, SyncAction] = {}
         for path in changed_files:
-            src_diff_type = src_diff.changes.get(path, None)
-            dst_diff_type = dst_diff.changes.get(path, None)
-            sync_action = action_matrix.get((src_diff_type, dst_diff_type), None)
+            src_diff = src_full_diff.changes.get(path, None)
+            dst_diff = dst_full_diff.changes.get(path, None)
 
-            if sync_action is None:
+            src_diff_type = type(src_diff) if src_diff else None
+            dst_diff_type = type(dst_diff) if dst_diff else None
+
+            sync_action_fn = action_matrix.get((src_diff_type, dst_diff_type), None)
+
+            if sync_action_fn is None:
                 raise SyncError(
                     'undecidable for "%s" source diff %s, destination %s' % (
                     path, src_diff_type, dst_diff_type))
 
-            actions[path] = sync_action
+            actions[path] = sync_action_fn(src_diff, dst_diff)
 
         if dry_run:
             LOGGER.warning('dry run mode!')
@@ -257,21 +315,21 @@ class Syncer:
             if dry_run:
                 continue
 
-            if action == SyncAction.UPLOAD:
+            if isinstance(action, UploadSyncAction):
                 stream = self.src_provider.read(path)
                 write(self.dst_provider, dst_state, path, stream)
                 dst_state.files[path] = self.dst_provider.get_file_state(path)
-            elif action == SyncAction.DOWNLOAD:
+            elif isinstance(action, DownloadSyncAction):
                 stream = self.dst_provider.read(path)
                 write(self.src_provider, src_state, path, stream)
                 src_state.files[path] = self.src_provider.get_file_state(path)
-            elif action == SyncAction.REMOVE_DST:
+            elif isinstance(action, RemoveOnDestinationSyncAction):
                 self.dst_provider.remove(path)
                 dst_state.files.pop(path)
-            elif action == SyncAction.REMOVE_SRC:
+            elif isinstance(action, RemoveOnSourceSyncAction):
                 self.src_provider.remove(path)
                 src_state.files.pop(path)
-            elif action == SyncAction.RESOLVE_CONFLICT:
+            elif isinstance(action, ResolveConflictSyncAction):
                 are_equal = self.compare(path)
                 if not are_equal:
                     # TODO: conflict should not fully stop the sync process, we
@@ -284,15 +342,13 @@ class Syncer:
                 else:
                     LOGGER.debug(
                         'resolved conflict for "%s" as files identical', path)
-            elif action == SyncAction.NOOP:
+            elif isinstance(action, NoopSyncAction):
                 pass
             else:
                 raise NotImplementedError('action %s' % action)
 
-        action_count = sum(1 for _, action in actions.items() if action != SyncAction.NOOP)
-
-        if action_count > 0:
-            counter = Counter(action for action in actions.values() if action != SyncAction.NOOP)
+        if len(actions):
+            counter = Counter(action.TYPE for action in actions.values())
             LOGGER.info('STATS: ' + ','.join('%s: %s' % (action, count) for action, count in counter.most_common()))
         else:
             LOGGER.info('no changes to sync')
