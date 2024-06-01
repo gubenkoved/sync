@@ -300,10 +300,11 @@ class Syncer:
                 provider.write(path, stream)
 
         for path, action in actions.items():
-            LOGGER.info('Apply %s', action)
-
             if dry_run:
+                LOGGER.info('would apply %s', action)
                 continue
+
+            LOGGER.info('apply %s', action)
 
             if isinstance(action, UploadSyncAction):
                 stream = self.src_provider.read(path)
