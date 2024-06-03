@@ -21,7 +21,13 @@ class ConflictError(ProviderError):
     pass
 
 
+# TODO: move depth parameter into the syncer itself to avoid depth mismatch
+#  issues; depth should be passed as parameter to get_state();
 class ProviderBase(ABC):
+    def get_label(self) -> str:
+        """Returns short string describing provider and vital parameters"""
+        return self.__class__.__name__
+
     @abstractmethod
     def get_handle(self) -> str:
         """

@@ -125,7 +125,6 @@ def make_glob_matcher(glob_pattern: str) -> Callable[[str], bool]:
     return matcher
 
 
-# TODO: detect MOVEMENT via DELETE/ADD pair for the file with same content hash
 class Syncer:
     def __init__(self,
                  src_provider: ProviderBase,
@@ -210,7 +209,12 @@ class Syncer:
         return src_hash == dst_hash
 
     def sync(self, dry_run: bool = False) -> List[SyncAction]:
-        LOGGER.debug('starting sync...')
+        LOGGER.info(
+            'syncing %s <---> %s%s',
+            self.src_provider.get_label(),
+            self.dst_provider.get_label(),
+            '; filter: %s' % self.filter_glob if self.filter_glob else '',
+        )
 
         pair_state = self.load_state()
 
@@ -349,22 +353,22 @@ class Syncer:
 
         if len(actions):
             counter = Counter(action.TYPE for action in actions.values())
-            LOGGER.info('STATS: ' + ','.join('%s: %s' % (action, count) for action, count in counter.most_common()))
+            LOGGER.info('STATS: ' + ', '.join('%s: %s' % (action, count) for action, count in counter.most_common()))
         else:
             LOGGER.info('no changes to sync')
 
-        # correctness check
-        missing_on_dst = set(dst_state.files) - set(src_state.files)
-        missing_on_src = set(src_state.files) - set(dst_state.files)
-
-        if missing_on_src or missing_on_dst:
-            raise SyncError(
-                'Unknown correctness error detected! '
-                'Missing on source: %s, missing on destination: %s' % (
-                    missing_on_src, missing_on_dst,
-                ))
-
         if not dry_run:
+            # correctness check
+            missing_on_dst = set(dst_state.files) - set(src_state.files)
+            missing_on_src = set(src_state.files) - set(dst_state.files)
+
+            if missing_on_src or missing_on_dst:
+                raise SyncError(
+                    'Unknown correctness error detected! '
+                    'Missing on source: %s, missing on destination: %s' % (
+                        missing_on_src, missing_on_dst,
+                    ))
+
             LOGGER.debug('saving state')
             LOGGER.debug('src state: %s', src_state.files)
             LOGGER.debug('dst state: %s', dst_state.files)

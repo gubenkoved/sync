@@ -50,6 +50,11 @@ class FSProvider(ProviderBase):
         if not os.path.exists(self.root_dir):
             raise SyncError('root directory "%s" does not exist' % self.root_dir)
 
+    def get_label(self) -> str:
+        if self.depth is not None:
+            return 'FS(%s, depth=%s)' % (self.root_dir, self.depth)
+        return 'FS(%s)' % self.root_dir
+
     def get_handle(self) -> str:
         return 'fs-' + hash_dict({
             'root_dif': self.root_dir,

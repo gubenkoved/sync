@@ -21,6 +21,7 @@ from sync.providers.common import (
 from sync.state import FileState, StorageState
 
 LOGGER = logging.getLogger(__name__)
+LISTING_LIMIT = 1000
 
 
 class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
@@ -41,6 +42,11 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         if depth is not None:
             if depth <= 0:
                 raise ValueError('invalid depth value')
+
+    def get_label(self) -> str:
+        if self.depth is not None:
+            return 'DBX(%s, depth=%s)' % (self.root_dir, self.depth)
+        return 'DBX(%s)' % self.root_dir
 
     def get_handle(self) -> str:
         return 'd-' + hash_dict({
@@ -80,11 +86,15 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
 
     def _list_folder(
             self, dbx: dropbox.Dropbox, path: str, recursive: bool = False):
+        LOGGER.debug('listing folder %s (recursive? %s)', path, recursive)
         entries = []
-        list_result = dbx.files_list_folder(path, recursive=recursive)
+        list_result = dbx.files_list_folder(
+            path, recursive=recursive, limit=LISTING_LIMIT)
+        LOGGER.debug('retrieved %s entries', len(list_result.entries))
         entries.extend(list_result.entries)
         while list_result.has_more:
             list_result = dbx.files_list_folder_continue(list_result.cursor)
+            LOGGER.debug('retrieved %s entries (continuation)', len(list_result.entries))
             entries.extend(list_result.entries)
         return entries
 
