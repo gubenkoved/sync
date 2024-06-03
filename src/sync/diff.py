@@ -74,23 +74,30 @@ class StorageStateDiff:
 
         # detect file movement
         for content_hash, diffs in added_removed_by_hash.items():
-            if {type(d) for d in diffs} == {AddedDiffType, RemovedDiffType}:
+            # TODO: implement more intelligent movement detector when multiple
+            #  files with the same content are moved -- there will be as many
+            #  added as removed diffs and we can try to do some best match based
+            #  on heuristic (exact allocation does not matter too much given
+            #  content is the same)
+            if len(diffs) == 2:
+                diff_types = {type(diff) for diff in diffs}
 
-                if isinstance(diffs[0], AddedDiffType):
-                    added_diff, removed_diff = diffs[0], diffs[1]
-                else:
-                    added_diff, removed_diff = diffs[1], diffs[0]
+                if diff_types == {AddedDiffType, RemovedDiffType}:
+                    if isinstance(diffs[0], AddedDiffType):
+                        added_diff, removed_diff = diffs[0], diffs[1]
+                    else:
+                        added_diff, removed_diff = diffs[1], diffs[0]
 
-                LOGGER.info(
-                    'detected file movement "%s" --> "%s" (hash %s)',
-                    removed_diff.path, added_diff.path, content_hash)
+                    LOGGER.info(
+                        'detected file movement "%s" --> "%s" (hash %s)',
+                        removed_diff.path, added_diff.path, content_hash)
 
-                del changes[added_diff.path]
-                changes[removed_diff.path] = MovedDiffType(
-                    removed_diff.path, added_diff.path)
+                    del changes[added_diff.path]
+                    changes[removed_diff.path] = MovedDiffType(
+                        removed_diff.path, added_diff.path)
 
             if len(diffs) > 2:
-                LOGGER.info(
+                LOGGER.warning(
                     'multiple diff types detected for the same content hash "%s": %s',
                     content_hash, diffs)
 
