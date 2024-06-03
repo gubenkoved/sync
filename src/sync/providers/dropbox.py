@@ -219,4 +219,6 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         dbx = self._get_dropbox()
         full_path = self._get_full_path(path)
         result = dbx.files_get_metadata(full_path)
+        if not isinstance(result, FileMetadata):
+            raise ProviderError('Expected file by path "%s"' % path)
         return result.content_hash
