@@ -18,7 +18,7 @@ from sync.provider import (
     FileAlreadyExistsError,
 )
 from sync.providers.common import (
-    unixify_path, path_split,
+    unixify_path,
 )
 from sync.state import (
     StorageState,

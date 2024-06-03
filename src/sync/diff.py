@@ -3,8 +3,8 @@ import collections
 import logging
 from typing import Dict, List
 
-from sync.state import StorageState
 from sync.providers.common import path_split
+from sync.state import StorageState
 
 LOGGER = logging.getLogger(__name__)
 
