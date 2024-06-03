@@ -6,7 +6,7 @@ import pytest
 
 from sync.core import (
     UploadSyncAction, DownloadSyncAction,
-    RemoveOnDestinationSyncAction,
+    RemoveOnSourceSyncAction, RemoveOnDestinationSyncAction,
     MoveOnSourceSyncAction, MoveOnDestinationSyncAction,
     ResolveConflictSyncAction,
 )
@@ -138,10 +138,10 @@ class SyncTestBase(TestCase):
 
         self.assertEqual(1, len(dst_provider.get_state().files))
 
-        src_provider.remove('bar')
+        dst_provider.remove('bar')
 
         self.do_sync([
-            RemoveOnDestinationSyncAction('bar'),
+            RemoveOnSourceSyncAction('bar'),
         ])
 
         self.assertEqual(0, len(dst_provider.get_state().files))
