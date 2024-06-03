@@ -21,6 +21,7 @@ from sync.providers.common import (
 from sync.state import FileState, StorageState
 
 LOGGER = logging.getLogger(__name__)
+LISTING_LIMIT = 1000
 
 
 class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
@@ -84,11 +85,14 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
                 dbx.files_create_folder_v2(self.root_dir)
 
     def _list_folder(self, dbx: dropbox.Dropbox, path: str):
+        LOGGER.debug('listing folder %s', path)
         entries = []
-        list_result = dbx.files_list_folder(path)
+        list_result = dbx.files_list_folder(path, limit=LISTING_LIMIT)
+        LOGGER.debug('retrieved %s entries', len(list_result.entries))
         entries.extend(list_result.entries)
         while list_result.has_more:
             list_result = dbx.files_list_folder_continue(list_result.cursor)
+            LOGGER.debug('retrieved %s entries (continuation)', len(list_result.entries))
             entries.extend(list_result.entries)
         return entries
 
@@ -99,6 +103,8 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             revision=entry.rev,
         )
 
+    # TODO: use recursive=True approach when the depth is not limited to minimize
+    #  amount of API calls
     def get_state(self) -> StorageState:
         dbx = self._get_dropbox()
         files = {}
