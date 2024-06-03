@@ -1,8 +1,8 @@
 import logging
 import os.path
+import shutil
 import tempfile
 from typing import BinaryIO, List, Optional
-import shutil
 
 from sync.core import (
     SyncError,
@@ -17,12 +17,12 @@ from sync.provider import (
     FileNotFoundProviderError,
     FileAlreadyExistsError,
 )
+from sync.providers.common import (
+    unixify_path,
+)
 from sync.state import (
     StorageState,
     FileState,
-)
-from sync.providers.common import (
-    unixify_path,
 )
 
 LOGGER = logging.getLogger(__name__)

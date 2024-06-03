@@ -1,9 +1,9 @@
 import abc
 import collections
-from typing import Dict, List
-from sync.state import StorageState
 import logging
+from typing import Dict, List
 
+from sync.state import StorageState
 
 LOGGER = logging.getLogger(__name__)
 

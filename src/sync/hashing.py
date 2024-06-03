@@ -1,10 +1,9 @@
 import io
 import json
 import logging
+from enum import StrEnum
 from hashlib import sha256
 from typing import BinaryIO, Dict, Any
-from enum import StrEnum
-
 
 LOGGER = logging.getLogger(__name__)
 

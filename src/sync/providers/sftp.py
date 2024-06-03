@@ -14,12 +14,12 @@ from sync.provider import (
     FileNotFoundProviderError,
     FileAlreadyExistsError,
 )
+from sync.providers.common import (
+    path_join, relative_path, path_split,
+)
 from sync.state import (
     StorageState,
     FileState,
-)
-from sync.providers.common import (
-    path_join, relative_path, path_split,
 )
 
 LOGGER = logging.getLogger(__name__)

@@ -1,5 +1,6 @@
 import abc
 import unittest
+
 import pytest
 
 from sync.hashing import HashType
