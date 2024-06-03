@@ -357,18 +357,18 @@ class Syncer:
         else:
             LOGGER.info('no changes to sync')
 
-        # correctness check
-        missing_on_dst = set(dst_state.files) - set(src_state.files)
-        missing_on_src = set(src_state.files) - set(dst_state.files)
-
-        if missing_on_src or missing_on_dst:
-            raise SyncError(
-                'Unknown correctness error detected! '
-                'Missing on source: %s, missing on destination: %s' % (
-                    missing_on_src, missing_on_dst,
-                ))
-
         if not dry_run:
+            # correctness check
+            missing_on_dst = set(dst_state.files) - set(src_state.files)
+            missing_on_src = set(src_state.files) - set(dst_state.files)
+
+            if missing_on_src or missing_on_dst:
+                raise SyncError(
+                    'Unknown correctness error detected! '
+                    'Missing on source: %s, missing on destination: %s' % (
+                        missing_on_src, missing_on_dst,
+                    ))
+
             LOGGER.debug('saving state')
             LOGGER.debug('src state: %s', src_state.files)
             LOGGER.debug('dst state: %s', dst_state.files)
