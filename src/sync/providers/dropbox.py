@@ -78,9 +78,10 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
                 LOGGER.info('root directory was not found -> create')
                 dbx.files_create_folder_v2(self.root_dir)
 
-    def _list_folder(self, dbx: dropbox.Dropbox, path: str):
+    def _list_folder(
+            self, dbx: dropbox.Dropbox, path: str, recursive: bool = False):
         entries = []
-        list_result = dbx.files_list_folder(path)
+        list_result = dbx.files_list_folder(path, recursive=recursive)
         entries.extend(list_result.entries)
         while list_result.has_more:
             list_result = dbx.files_list_folder_continue(list_result.cursor)
@@ -94,7 +95,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             revision=entry.rev,
         )
 
-    def get_state(self) -> StorageState:
+    def __get_state_walking(self):
         dbx = self._get_dropbox()
         files = {}
 
@@ -108,11 +109,30 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
                     rel_path = relative_path(full_path, self.root_dir)
                     files[rel_path] = self._file_metadata_to_file_state(entry)
                 elif isinstance(entry, FolderMetadata):
-                    walk(entry.path_display, depth+1)
+                    walk(entry.path_display, depth + 1)
 
         self._ensure_root_dir(dbx)
         walk(self.root_dir, depth=1)
         return StorageState(files)
+
+    def __get_state(self):
+        dbx = self._get_dropbox()
+        files = {}
+        self._ensure_root_dir(dbx)
+
+        for entry in self._list_folder(dbx, self.root_dir, recursive=True):
+            if isinstance(entry, FileMetadata):
+                full_path = entry.path_display
+                assert full_path.startswith(self.root_dir)
+                rel_path = relative_path(full_path, self.root_dir)
+                files[rel_path] = self._file_metadata_to_file_state(entry)
+
+        return StorageState(files)
+
+    def get_state(self) -> StorageState:
+        if self.depth is not None:
+            return self.__get_state_walking()
+        return self.__get_state()
 
     def get_file_state(self, path: str) -> FileState:
         dbx = self._get_dropbox()

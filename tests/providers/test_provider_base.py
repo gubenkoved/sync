@@ -78,6 +78,16 @@ class ProviderTestBase(unittest.TestCase):
         self.assertIn('foo/bar.file', state.files)
         self.assertIn('foo/bar/baz.file', state.files)
 
+    @pytest.mark.slow
+    def test_many_sub_directories(self):
+        provider = self.get_provider()
+        n = 16
+        for dir_idx in range(n):
+            with random_bytes_stream(128) as stream:
+                provider.write('dir_%s/data' % dir_idx, stream)
+        state = provider.get_state()
+        self.assertEqual(n, len(state.files))
+
     def test_remove(self):
         provider = self.get_provider()
         with bytes_as_stream(b'test') as stream1:
