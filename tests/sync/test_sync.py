@@ -218,7 +218,7 @@ class SyncTestBase(TestCase):
             UploadSyncAction('foo/file2'),
         ], ensure_same_state=False)
 
-    def test_moved_multiple_files_with_same_hash(self):
+    def test_move_multiple_files_with_same_hash(self):
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
 
@@ -228,18 +228,57 @@ class SyncTestBase(TestCase):
         with bytes_as_stream(b'data') as stream:
             src_provider.write('foo/file2', stream)
 
+        with bytes_as_stream(b'data') as stream:
+            src_provider.write('foo/file3', stream)
+
         self.do_sync([
             UploadSyncAction('foo/file1'),
             UploadSyncAction('foo/file2'),
+            UploadSyncAction('foo/file3'),
         ])
 
-        # now move both files into the new directory
+        # now move files into the new directory
         src_provider.move('foo/file1', 'bar/file1')
         src_provider.move('foo/file2', 'bar/file2')
+        src_provider.move('foo/file3', 'bar/file3')
 
         self.do_sync([
             MoveOnDestinationSyncAction('foo/file1', 'bar/file1'),
             MoveOnDestinationSyncAction('foo/file2', 'bar/file2'),
+            MoveOnDestinationSyncAction('foo/file3', 'bar/file3'),
+        ])
+
+    def test_move_multiple_files_with_filename_changes(self):
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
+
+        with bytes_as_stream(b'data') as stream:
+            src_provider.write('foo/file-is-named-like-this', stream)
+
+        with bytes_as_stream(b'data') as stream:
+            src_provider.write('foo/some-totally-different-naming', stream)
+
+        with bytes_as_stream(b'data') as stream:
+            src_provider.write('foo/boo', stream)
+
+        self.do_sync([
+            UploadSyncAction('foo/file-is-named-like-this'),
+            UploadSyncAction('foo/some-totally-different-naming'),
+            UploadSyncAction('foo/boo'),
+        ])
+
+        # now move files into the new directory and slightly adjust names
+        src_provider.move('foo/file-is-named-like-this', 'bar/file_is_named_like_this')
+        src_provider.move('foo/some-totally-different-naming', 'bar/some-totally-different-naming-changed')
+        src_provider.move('foo/boo', 'bar/boo-new')
+
+        self.do_sync([
+            MoveOnDestinationSyncAction(
+                'foo/file-is-named-like-this', 'bar/file_is_named_like_this'),
+            MoveOnDestinationSyncAction(
+                'foo/some-totally-different-naming', 'bar/some-totally-different-naming-changed'),
+            MoveOnDestinationSyncAction(
+                'foo/boo', 'bar/boo-new'),
         ])
 
 

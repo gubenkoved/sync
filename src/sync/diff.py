@@ -4,6 +4,7 @@ import logging
 from typing import Dict, List
 
 from sync.state import StorageState
+from sync.providers.common import path_split
 
 LOGGER = logging.getLogger(__name__)
 
@@ -74,27 +75,32 @@ class StorageStateDiff:
 
         # detect file movement
         for content_hash, diffs in added_removed_by_hash.items():
-            # TODO: implement more intelligent movement detector when multiple
-            #  files with the same content are moved -- there will be as many
-            #  added as removed diffs and we can try to do some best match based
-            #  on heuristic (exact allocation does not matter too much given
-            #  content is the same)
-            if len(diffs) == 2:
-                diff_types = {type(diff) for diff in diffs}
+            added_diffs = list(filter(lambda x: isinstance(x, AddedDiffType), diffs))
+            removed_diffs = list(filter(lambda x: isinstance(x, RemovedDiffType), diffs))
 
-                if diff_types == {AddedDiffType, RemovedDiffType}:
-                    if isinstance(diffs[0], AddedDiffType):
-                        added_diff, removed_diff = diffs[0], diffs[1]
-                    else:
-                        added_diff, removed_diff = diffs[1], diffs[0]
+            if len(added_diffs) == len(removed_diffs):
+                # so we have same amount of removed and added items for the same hash
+                # we need to allocate movement using some best match heuristic
+
+                def score(added_diff: AddedDiffType, removed_diff: RemovedDiffType):
+                    _, added_filename = path_split(added_diff.path)
+                    _, removed_filename = path_split(removed_diff.path)
+                    # TODO: use edit distance instead!
+                    return sum(1 for _ in set(added_filename) & set(removed_filename))
+
+                for removed_diff in removed_diffs:
+                    # pick added diff with best score
+                    best_match_added_diff = max(
+                        added_diffs, key=lambda added_diff: score(added_diff, removed_diff))
+                    added_diffs.remove(best_match_added_diff)
 
                     LOGGER.info(
                         'detected file movement "%s" --> "%s" (hash %s)',
-                        removed_diff.path, added_diff.path, content_hash)
+                        removed_diff.path, best_match_added_diff.path, content_hash)
 
-                    del changes[added_diff.path]
+                    del changes[best_match_added_diff.path]
                     changes[removed_diff.path] = MovedDiffType(
-                        removed_diff.path, added_diff.path)
+                        removed_diff.path, best_match_added_diff.path)
 
             if len(diffs) > 2:
                 LOGGER.warning(
