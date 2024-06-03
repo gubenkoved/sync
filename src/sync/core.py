@@ -74,6 +74,8 @@ class MoveOnSourceSyncAction(SyncAction):
             self.__class__.__name__, self.path, self.new_path)
 
     def __eq__(self, other):
+        if not isinstance(other, MoveOnSourceSyncAction):
+            return False
         return self.path == other.path and self.new_path == other.new_path
 
 
@@ -89,6 +91,8 @@ class MoveOnDestinationSyncAction(SyncAction):
             self.__class__.__name__, self.path, self.new_path)
 
     def __eq__(self, other):
+        if not isinstance(other, MoveOnDestinationSyncAction):
+            return False
         return self.path == other.path and self.new_path == other.new_path
 
 
@@ -132,11 +136,11 @@ class Syncer:
                  state_root_dir: str = '.state',
                  filter_glob: Optional[str] = None,
                  depth: int | None = None):
-        self.src_provider = src_provider
-        self.dst_provider = dst_provider
-        self.state_root_dir = os.path.abspath(os.path.expanduser(state_root_dir))
-        self.filter_glob = filter_glob
-        self.depth = depth
+        self.src_provider: ProviderBase = src_provider
+        self.dst_provider: ProviderBase = dst_provider
+        self.state_root_dir: str = os.path.abspath(os.path.expanduser(state_root_dir))
+        self.filter_glob: str | None = filter_glob
+        self.depth: int | None = depth
 
         if not os.path.exists(self.state_root_dir):
             LOGGER.warning('state dir does not exist -> create')

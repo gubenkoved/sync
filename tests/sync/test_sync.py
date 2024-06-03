@@ -218,6 +218,30 @@ class SyncTestBase(TestCase):
             UploadSyncAction('foo/file2'),
         ], ensure_same_state=False)
 
+    def test_moved_multiple_files_with_same_hash(self):
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
+
+        with bytes_as_stream(b'data') as stream:
+            src_provider.write('foo/file1', stream)
+
+        with bytes_as_stream(b'data') as stream:
+            src_provider.write('foo/file2', stream)
+
+        self.do_sync([
+            UploadSyncAction('foo/file1'),
+            UploadSyncAction('foo/file2'),
+        ])
+
+        # now move both files into the new directory
+        src_provider.move('foo/file1', 'bar/file1')
+        src_provider.move('foo/file2', 'bar/file2')
+
+        self.do_sync([
+            MoveOnDestinationSyncAction('foo/file1', 'bar/file1'),
+            MoveOnDestinationSyncAction('foo/file2', 'bar/file2'),
+        ])
+
 
 if __name__ == '__main__':
     pytest.main()

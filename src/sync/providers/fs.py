@@ -18,7 +18,7 @@ from sync.provider import (
     FileAlreadyExistsError,
 )
 from sync.providers.common import (
-    unixify_path,
+    unixify_path, path_split,
 )
 from sync.state import (
     StorageState,
@@ -107,12 +107,17 @@ class FSProvider(ProviderBase):
         except FileNotFoundError:
             raise FileNotFoundProviderError(f'File not found: {path}')
 
+    @staticmethod
+    def _ensure_dir(dir_path: str):
+        if not os.path.exists(dir_path):
+            LOGGER.debug(f'creating directory {dir_path}...')
+            os.makedirs(dir_path)
+
     def write(self, path: str, stream: BinaryIO):
         abs_path = self._abs_path(path)
         dir_path = os.path.dirname(abs_path)
 
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
+        self._ensure_dir(dir_path)
 
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             while True:
@@ -139,10 +144,15 @@ class FSProvider(ProviderBase):
             raise FileAlreadyExistsError(
                 f'File already exists: {destination_path}')
 
+        # ensure destination directory if missing
+        destination_dir, _ = os.path.split(destination_abs_path)
+        self._ensure_dir(destination_dir)
+
         try:
             shutil.move(source_abs_path, destination_abs_path)
-        except FileNotFoundError:
-            raise FileNotFoundProviderError(f'File not found: {source_path}')
+        except FileNotFoundError as err:
+            raise FileNotFoundProviderError(
+                f'File not found: {source_path}') from err
 
     def supported_hash_types(self) -> List[HashType]:
         return self.SUPPORTED_HASH_TYPES
