@@ -1,16 +1,15 @@
 import abc
-from abc import abstractmethod
 from unittest import TestCase
 
 import pytest
-from sync.core import Syncer
-from tests.common import bytes_as_stream, stream_to_bytes
+
 from sync.core import (
     UploadSyncAction, DownloadSyncAction,
-    RemoveOnSourceSyncAction, RemoveOnDestinationSyncAction,
+    RemoveOnDestinationSyncAction,
     MoveOnSourceSyncAction, MoveOnDestinationSyncAction,
     ResolveConflictSyncAction,
 )
+from tests.common import bytes_as_stream, stream_to_bytes
 
 
 class SyncTestBase(TestCase):
@@ -25,7 +24,14 @@ class SyncTestBase(TestCase):
         src_state = self.syncer.src_provider.get_state()
         dst_state = self.syncer.dst_provider.get_state()
 
-        self.assertEqual(src_state, dst_state)
+        # ensure same file lists
+        # note that we can not directly compare different providers StorageState
+        # as the content hash is abstract and can mean different things
+        self.assertEqual(set(src_state.files), set(dst_state.files))
+
+        for path in src_state.files:
+            self.assertTrue(
+                self.syncer.compare(path), 'files are different by path %s' % path)
 
     def do_sync(self, expected_sync_actions=None):
         sync_actions = self.syncer.sync()
