@@ -306,7 +306,7 @@ class Syncer:
                 LOGGER.debug('writing file at "%s"', path)
                 provider.write(path, stream)
 
-        for path, action in actions.items():
+        for action in sorted(actions.values(), key=lambda x: x.path):
             if dry_run:
                 LOGGER.info('would apply %s', action)
                 continue
@@ -314,21 +314,21 @@ class Syncer:
             LOGGER.info('apply %s', action)
 
             if isinstance(action, UploadSyncAction):
-                stream = self.src_provider.read(path)
-                write(self.dst_provider, dst_state, path, stream)
-                dst_state.files[path] = self.dst_provider.get_file_state(path)
+                stream = self.src_provider.read(action.path)
+                write(self.dst_provider, dst_state, action.path, stream)
+                dst_state.files[action.path] = self.dst_provider.get_file_state(action.path)
             elif isinstance(action, DownloadSyncAction):
-                stream = self.dst_provider.read(path)
-                write(self.src_provider, src_state, path, stream)
-                src_state.files[path] = self.src_provider.get_file_state(path)
+                stream = self.dst_provider.read(action.path)
+                write(self.src_provider, src_state, action.path, stream)
+                src_state.files[action.path] = self.src_provider.get_file_state(action.path)
             elif isinstance(action, RemoveOnDestinationSyncAction):
-                self.dst_provider.remove(path)
-                dst_state.files.pop(path)
+                self.dst_provider.remove(action.path)
+                dst_state.files.pop(action.path)
             elif isinstance(action, RemoveOnSourceSyncAction):
-                self.src_provider.remove(path)
-                src_state.files.pop(path)
+                self.src_provider.remove(action.path)
+                src_state.files.pop(action.path)
             elif isinstance(action, ResolveConflictSyncAction):
-                are_equal = self.compare(path)
+                are_equal = self.compare(action.path)
                 if not are_equal:
                     # TODO: conflict should not fully stop the sync process, we
                     #  need to process other files and report the sync issues at
@@ -336,10 +336,10 @@ class Syncer:
                     #  marked accordingly or probably should not be included into
                     #  set of files, so that they are considered "added" on both
                     #  ends and conflict resolution repeats
-                    raise SyncError('Unable to resolve conflict for "%s"' % path)
+                    raise SyncError('Unable to resolve conflict for "%s"' % action.path)
                 else:
                     LOGGER.debug(
-                        'resolved conflict for "%s" as files identical', path)
+                        'resolved conflict for "%s" as files identical', action.path)
             elif isinstance(action, MoveOnSourceSyncAction):
                 self.src_provider.move(action.path, action.new_path)
                 src_state.files[action.new_path] = src_state.files[action.path]
