@@ -9,7 +9,7 @@ from sync.core import (
     MoveOnSourceSyncAction, MoveOnDestinationSyncAction,
     ResolveConflictSyncAction,
 )
-from tests.common import bytes_as_stream, stream_to_bytes
+from tests.common import bytes_as_stream, stream_to_bytes, random_bytes_stream
 
 
 class SyncTestBase(TestCase):
@@ -33,11 +33,12 @@ class SyncTestBase(TestCase):
             self.assertTrue(
                 self.syncer.compare(path), 'files are different by path %s' % path)
 
-    def do_sync(self, expected_sync_actions=None):
+    def do_sync(self, expected_sync_actions=None, ensure_same_state=True):
         sync_actions = self.syncer.sync()
         if expected_sync_actions is not None:
             self.assertCountEqual(expected_sync_actions, sync_actions)
-        self.ensure_same_state()
+        if ensure_same_state:
+            self.ensure_same_state()
 
     def test_sync_new_files(self):
         src_provider = self.syncer.src_provider
@@ -180,6 +181,33 @@ class SyncTestBase(TestCase):
         self.do_sync([
             ResolveConflictSyncAction('foo'),
         ])
+
+    def test_limited_depth(self):
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
+
+        with random_bytes_stream() as stream:
+            src_provider.write('file1', stream)
+            src_provider.write('foo/file1', stream)
+            src_provider.write('foo/file2', stream)
+            src_provider.write('foo/bar/file1', stream)
+            src_provider.write('foo/bar/file2', stream)
+
+        # normally depth is set in the constructor, but it is okay currently
+        # to modify it for simplicity
+        self.syncer.depth = 1
+
+        self.do_sync([
+            UploadSyncAction('file1')
+        ], ensure_same_state=False)
+
+        self.syncer.depth = 2
+
+        self.do_sync([
+            ResolveConflictSyncAction('file1'),
+            UploadSyncAction('foo/file1'),
+            UploadSyncAction('foo/file2'),
+        ], ensure_same_state=False)
 
 
 if __name__ == '__main__':

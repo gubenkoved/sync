@@ -38,36 +38,28 @@ class FSProvider(ProviderBase):
     BUFFER_SIZE = 4096
     SUPPORTED_HASH_TYPES = [HashType.SHA256, HashType.DROPBOX_SHA256]
 
-    def __init__(self, root_dir: str, depth: Optional[int] = None):
-        if depth is not None:
-            if depth <= 0:
-                raise ValueError('invalid depth value')
-
+    def __init__(self, root_dir: str):
         LOGGER.debug('init FS provider with root at "%s"', root_dir)
         self.root_dir = os.path.abspath(os.path.expanduser(root_dir))
-        self.depth = depth
 
         if not os.path.exists(self.root_dir):
             raise SyncError('root directory "%s" does not exist' % self.root_dir)
 
     def get_label(self) -> str:
-        if self.depth is not None:
-            return 'FS(%s, depth=%s)' % (self.root_dir, self.depth)
         return 'FS(%s)' % self.root_dir
 
     def get_handle(self) -> str:
         return 'fs-' + hash_dict({
-            'root_dif': self.root_dir,
-            'depth': self.depth,
+            'root_dir': self.root_dir,
         })
 
-    def get_state(self) -> StorageState:
+    def get_state(self, depth: int | None = None) -> StorageState:
         files = {}
 
         def walk(dir_path: str, level: int):
             LOGGER.debug('walking "%s"...', dir_path)
 
-            if self.depth is not None and level > self.depth:
+            if depth is not None and level > depth:
                 return
 
             for entry in os.scandir(dir_path):

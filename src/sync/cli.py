@@ -16,22 +16,20 @@ from sync.providers.sftp import STFPProvider
 LOGGER = logging.getLogger('cli')
 
 
-# TODO: filter as glob expression back + add ability to limit depth instead to
-#  be able to implement sync cases where we want couple of files in the root of
-#  some dir with a lot of children
 def main(source_provider: ProviderBase,
          destination_provider: ProviderBase,
          dry_run: bool = False,
-         filter_glob: Optional[str] = None):
+         filter_glob: Optional[str] = None,
+         depth: int | None = None):
     syncer = Syncer(
         source_provider,
         destination_provider,
         filter_glob=filter_glob,
+        depth=depth,
     )
     syncer.sync(dry_run=dry_run)
 
 
-# TODO: support positional args as well?
 def parse_args(args: List[str]):
     result = {}
     for arg in args:
@@ -41,7 +39,7 @@ def parse_args(args: List[str]):
     return result
 
 
-def init_provider(args: List[str], depth: Optional[int] = None):
+def init_provider(args: List[str]):
     provider_type = args[0]
     provider_args = parse_args(args[1:])
 
@@ -53,7 +51,6 @@ def init_provider(args: List[str], depth: Optional[int] = None):
     if provider_type == 'FS':
         provider = FSProvider(
             root_dir=get('root'),
-            depth=depth,
         )
     elif provider_type == 'D':
         account_id = get('id')
@@ -77,7 +74,6 @@ def init_provider(args: List[str], depth: Optional[int] = None):
         provider = DropboxProvider(
             account_id=account_id,
             root_dir=get('root'),
-            depth=depth,
             **dropbox_args,
         )
     elif provider_type == 'SFTP':
@@ -88,7 +84,6 @@ def init_provider(args: List[str], depth: Optional[int] = None):
             key_path=get('key', required=False),
             password=get('pass', required=False),
             port=int(get('port', required=False) or 22),
-            depth=depth,
         )
     else:
         raise Exception('unknown provider: "%s"' % provider_type)
@@ -123,8 +118,8 @@ def entrypoint():
     logging.getLogger('dropbox').setLevel(logging.WARNING)
     logging.getLogger('paramiko').setLevel(logging.WARNING)
 
-    source_provider = init_provider(args.source, depth=args.depth)
-    destination_provider = init_provider(args.destination, depth=args.depth)
+    source_provider = init_provider(args.source)
+    destination_provider = init_provider(args.destination)
 
     try:
         main(
@@ -132,6 +127,7 @@ def entrypoint():
             destination_provider,
             dry_run=args.dry_run,
             filter_glob=args.filter_glob,
+            depth=args.depth,
         )
     except Exception as err:
         LOGGER.fatal('error: %s', err, exc_info=True)

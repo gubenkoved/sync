@@ -30,7 +30,7 @@ class STFPProvider(ProviderBase):
 
     def __init__(self, host: str, username: str, root_dir: str,
                  password: Optional[str] = None, key_path: Optional[str] = None,
-                 port: int = 22, depth: Optional[int] = None):
+                 port: int = 22):
         """
         Implements SFTP provider with Unix as a target platform only.
         """
@@ -40,12 +40,6 @@ class STFPProvider(ProviderBase):
         self.password = password
         self.key_path = key_path
         self.port = port
-        self.depth = depth
-
-        if depth is not None:
-            if depth < 1:
-                raise ValueError(
-                    'depth should either be None or bigger or equal to 1')
 
         if self.key_path:
             self.key_path = os.path.expanduser(self.key_path)
@@ -54,16 +48,12 @@ class STFPProvider(ProviderBase):
         self.__sftp_client = None
 
     def get_label(self) -> str:
-        if self.depth is not None:
-            return 'SFTP(%s@%s:%s, depth=%s)' % (
-                self.username, self.host, self.root_dir, self.depth)
         return 'SFTP(%s@%s:%s)' % (self.username, self.host, self.root_dir)
 
     def get_handle(self) -> str:
         return 'sftp-' + hash_dict({
             'host': self.host,
             'root_dir': self.root_dir,
-            'depth': self.depth,
         })
 
     def _need_reconnect(self) -> bool:
@@ -112,12 +102,12 @@ class STFPProvider(ProviderBase):
             content_hash=STFPProvider._sha256_file(ssh, full_path),
         )
 
-    def get_state(self) -> StorageState:
+    def get_state(self, depth: int | None = None) -> StorageState:
         ssh, sftp = self._connect()
         files = {}
 
-        def walk(dir_path, depth):
-            if self.depth is not None and depth >= self.depth:
+        def walk(dir_path, cur_depth):
+            if depth is not None and cur_depth >= depth:
                 return
 
             sftp.chdir(dir_path)
@@ -138,10 +128,10 @@ class STFPProvider(ProviderBase):
                     dirs.append(filename)
 
             for dir_name in dirs:
-                walk(path_join(dir_path, dir_name), depth=depth + 1)
+                walk(path_join(dir_path, dir_name), cur_depth=cur_depth + 1)
 
         self._ensure_dir(ssh, self.root_dir)
-        walk(self.root_dir, depth=1)
+        walk(self.root_dir, cur_depth=1)
 
         return StorageState(files)
 

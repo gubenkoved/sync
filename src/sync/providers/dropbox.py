@@ -29,30 +29,22 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
 
     def __init__(self, account_id: str, token: str, root_dir: str,
                  is_refresh_token=False, app_key: Optional[str] = None,
-                 app_secret: Optional[str] = None, depth: Optional[int] = None):
+                 app_secret: Optional[str] = None):
         self.account_id = account_id
         self.root_dir = root_dir
         self.token = token
         self.is_refresh_token = is_refresh_token
         self.app_key = app_key
         self.app_secret = app_secret
-        self.depth = depth
         self._dropbox = None
 
-        if depth is not None:
-            if depth <= 0:
-                raise ValueError('invalid depth value')
-
     def get_label(self) -> str:
-        if self.depth is not None:
-            return 'DBX(%s, depth=%s)' % (self.root_dir, self.depth)
         return 'DBX(%s)' % self.root_dir
 
     def get_handle(self) -> str:
         return 'd-' + hash_dict({
             'account_id': self.account_id,
             'root_dir': self.root_dir,
-            'depth': self.depth,
         })
 
     def _get_dropbox(self) -> dropbox.Dropbox:
@@ -105,13 +97,14 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             revision=entry.rev,
         )
 
-    def __get_state_walking(self):
+    def __get_state_walking(self, max_depth: int):
         dbx = self._get_dropbox()
         files = {}
 
         def walk(path: str, depth: int):
-            if self.depth is not None and depth > self.depth:
+            if depth > max_depth:
                 return
+
             for entry in self._list_folder(dbx, path):
                 if isinstance(entry, FileMetadata):
                     full_path = entry.path_display
@@ -139,9 +132,9 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
 
         return StorageState(files)
 
-    def get_state(self) -> StorageState:
-        if self.depth is not None:
-            return self.__get_state_walking()
+    def get_state(self, depth: int | None = None) -> StorageState:
+        if depth is not None:
+            return self.__get_state_walking(depth)
         return self.__get_state()
 
     def get_file_state(self, path: str) -> FileState:

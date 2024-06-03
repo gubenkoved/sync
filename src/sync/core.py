@@ -130,18 +130,20 @@ class Syncer:
                  src_provider: ProviderBase,
                  dst_provider: ProviderBase,
                  state_root_dir: str = '.state',
-                 filter_glob: Optional[str] = None):
+                 filter_glob: Optional[str] = None,
+                 depth: int | None = None):
         self.src_provider = src_provider
         self.dst_provider = dst_provider
         self.state_root_dir = os.path.abspath(os.path.expanduser(state_root_dir))
         self.filter_glob = filter_glob
+        self.depth = depth
 
         if not os.path.exists(self.state_root_dir):
             LOGGER.warning('state dir does not exist -> create')
             os.makedirs(self.state_root_dir)
 
-        if getattr(src_provider, 'depth') != getattr(dst_provider, 'depth'):
-            raise SyncError('Depth mismatch between providers')
+        if self.depth is not None and self.depth <= 0:
+            raise ValueError('Invalid depth')
 
     def get_state_handle(self):
         src_handle = self.src_provider.get_handle()
@@ -151,6 +153,7 @@ class Syncer:
             'src': src_handle,
             'dst': dst_handle,
             'filter_glob': self.filter_glob,
+            'depth': self.depth,
         })
         return pair_handle
 
@@ -221,8 +224,8 @@ class Syncer:
         src_state_snapshot = pair_state.source_state
         dst_state_snapshot = pair_state.dest_state
 
-        src_state = self.src_provider.get_state()
-        dst_state = self.dst_provider.get_state()
+        src_state = self.src_provider.get_state(self.depth)
+        dst_state = self.dst_provider.get_state(self.depth)
 
         # get rid of ignored files
         def not_ignored_matcher(path):
