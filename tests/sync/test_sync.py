@@ -1,8 +1,8 @@
 import abc
+import os.path
 from unittest import TestCase
 
 import pytest
-import os.path
 
 from sync.core import (
     UploadSyncAction, DownloadSyncAction,

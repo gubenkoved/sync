@@ -4,8 +4,8 @@ import tempfile
 import uuid
 
 from sync.core import Syncer
-from sync.providers.sftp import STFPProvider
 from sync.providers.fs import FSProvider
+from sync.providers.sftp import STFPProvider
 from tests.sync.test_sync import SyncTestBase
 
 

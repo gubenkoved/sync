@@ -2,7 +2,7 @@ import logging
 import os.path
 import shutil
 import tempfile
-from typing import BinaryIO, List, Optional
+from typing import BinaryIO, List
 
 from sync.core import (
     SyncError,
