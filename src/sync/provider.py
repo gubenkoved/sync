@@ -22,6 +22,10 @@ class ConflictError(ProviderError):
 
 
 class ProviderBase(ABC):
+    def get_label(self) -> str:
+        """Returns short string describing provider and vital parameters"""
+        return self.__class__.__name__
+
     @abstractmethod
     def get_handle(self) -> str:
         """

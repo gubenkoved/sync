@@ -42,6 +42,11 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             if depth <= 0:
                 raise ValueError('invalid depth value')
 
+    def get_label(self) -> str:
+        if self.depth is not None:
+            return 'DBX(%s, depth=%s)' % (self.root_dir, self.depth)
+        return 'DBX(%s)' % self.root_dir
+
     def get_handle(self) -> str:
         return 'd-' + hash_dict({
             'account_id': self.account_id,

@@ -125,7 +125,6 @@ def make_glob_matcher(glob_pattern: str) -> Callable[[str], bool]:
     return matcher
 
 
-# TODO: detect MOVEMENT via DELETE/ADD pair for the file with same content hash
 class Syncer:
     def __init__(self,
                  src_provider: ProviderBase,
@@ -210,7 +209,12 @@ class Syncer:
         return src_hash == dst_hash
 
     def sync(self, dry_run: bool = False) -> List[SyncAction]:
-        LOGGER.debug('starting sync...')
+        LOGGER.info(
+            'syncing %s <---> %s%s',
+            self.src_provider.get_label(),
+            self.dst_provider.get_label(),
+            '; filter: %s' % self.filter_glob if self.filter_glob else '',
+        )
 
         pair_state = self.load_state()
 
@@ -349,7 +353,7 @@ class Syncer:
 
         if len(actions):
             counter = Counter(action.TYPE for action in actions.values())
-            LOGGER.info('STATS: ' + ','.join('%s: %s' % (action, count) for action, count in counter.most_common()))
+            LOGGER.info('STATS: ' + ', '.join('%s: %s' % (action, count) for action, count in counter.most_common()))
         else:
             LOGGER.info('no changes to sync')
 

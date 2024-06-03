@@ -53,6 +53,12 @@ class STFPProvider(ProviderBase):
         self.__ssh_client = None
         self.__sftp_client = None
 
+    def get_label(self) -> str:
+        if self.depth is not None:
+            return 'SFTP(%s@%s:%s, depth=%s)' % (
+                self.username, self.host, self.root_dir, self.depth)
+        return 'SFTP(%s@%s:%s)' % (self.username, self.host, self.root_dir)
+
     def get_handle(self) -> str:
         return 'sftp-' + hash_dict({
             'host': self.host,
