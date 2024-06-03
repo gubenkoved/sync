@@ -34,14 +34,6 @@ class FsToDropboxSyncTest(SyncTestBase):
             dst_provider,
         )
 
-        state_file_path = self._syncer.get_state_file_path()
-
-        def cleanup_state_file():
-            if os.path.exists(state_file_path):
-                os.remove(state_file_path)
-
-        self.addCleanup(cleanup_state_file)
-
     @property
     def syncer(self):
         return self._syncer

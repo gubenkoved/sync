@@ -2,6 +2,7 @@ import abc
 from unittest import TestCase
 
 import pytest
+import os.path
 
 from sync.core import (
     UploadSyncAction, DownloadSyncAction,
@@ -19,6 +20,14 @@ class SyncTestBase(TestCase):
     @abc.abstractmethod
     def syncer(self):
         raise NotImplementedError
+
+    def tearDown(self):
+        super().tearDown()
+
+        state_file_path = self.syncer.get_state_file_path()
+
+        if os.path.exists(state_file_path):
+            os.remove(state_file_path)
 
     def ensure_same_state(self):
         src_state = self.syncer.src_provider.get_state()
