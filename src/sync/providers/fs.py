@@ -32,8 +32,6 @@ LOGGER = logging.getLogger(__name__)
 #  (e.g. to avoid recomputing hashes when there seem to be no reason to do so, like
 #  both size and modification time is unchanged), this probably can be united with
 #  the other provider state
-# TODO: handle empty directories? git does not handle that...
-# TODO: add support for safe update
 class FSProvider(ProviderBase):
     BUFFER_SIZE = 4096
     SUPPORTED_HASH_TYPES = [HashType.SHA256, HashType.DROPBOX_SHA256]
@@ -51,7 +49,16 @@ class FSProvider(ProviderBase):
     def get_handle(self) -> str:
         return 'fs-' + hash_dict({
             'root_dir': self.root_dir,
+            # change version when making a change that makes provider state
+            # from previous version no longer compatible
+            'version': 2,
         })
+
+    def _file_state(self, abs_path: str) -> FileState:
+        return FileState(
+            content_hash=self._file_hash(abs_path),
+            revision=str(os.path.getmtime(abs_path)),
+        )
 
     def get_state(self, depth: int | None = None) -> StorageState:
         files = {}
@@ -67,9 +74,7 @@ class FSProvider(ProviderBase):
                     abs_path = entry.path
                     rel_path = os.path.relpath(abs_path, self.root_dir)
                     rel_path = unixify_path(rel_path)
-                    files[rel_path] = FileState(
-                        content_hash=self._file_hash(abs_path)
-                    )
+                    files[rel_path] = self._file_state(abs_path)
                 elif entry.is_dir():
                     walk(entry.path, level + 1)
 
@@ -88,9 +93,7 @@ class FSProvider(ProviderBase):
     def get_file_state(self, path: str):
         abs_path = self._abs_path(path)
         try:
-            return FileState(
-                content_hash=self._file_hash(abs_path)
-            )
+            return self._file_state(abs_path)
         except FileNotFoundError:
             raise FileNotFoundProviderError(f'File not found: {path}')
 
