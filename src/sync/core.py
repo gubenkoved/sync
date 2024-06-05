@@ -340,10 +340,12 @@ class Syncer:
                     #  marked accordingly or probably should not be included into
                     #  set of files, so that they are considered "added" on both
                     #  ends and conflict resolution repeats
-                    raise SyncError('Unable to resolve conflict for "%s"' % action.path)
+                    raise SyncError(
+                        'Unable to resolve conflict for "%s"' % action.path)
                 else:
                     LOGGER.debug(
-                        'resolved conflict for "%s" as files identical', action.path)
+                        'resolved conflict for "%s" as files identical',
+                        action.path)
             elif isinstance(action, MoveOnSourceSyncAction):
                 self.src_provider.move(action.path, action.new_path)
                 src_state.files[action.new_path] = src_state.files[action.path]
@@ -360,7 +362,9 @@ class Syncer:
 
         if len(actions):
             counter = Counter(action.TYPE for action in actions.values())
-            LOGGER.info('STATS: ' + ', '.join('%s: %s' % (action, count) for action, count in counter.most_common()))
+            LOGGER.info('STATS: ' + ', '.join(
+                '%s: %s' % (action, count)
+                for action, count in counter.most_common()))
         else:
             LOGGER.info('no changes to sync')
 
