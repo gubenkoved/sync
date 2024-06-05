@@ -51,9 +51,6 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     def get_handle(self) -> str:
         return 'fs-' + hash_dict({
             'root_dir': self.root_dir,
-            # change version when making a change that makes provider state
-            # from previous version no longer compatible
-            'version': 2,
         })
 
     def _file_state(self, abs_path: str) -> FileState:
