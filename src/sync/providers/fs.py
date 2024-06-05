@@ -16,6 +16,8 @@ from sync.provider import (
     ProviderError,
     FileNotFoundProviderError,
     FileAlreadyExistsError,
+    SafeUpdateSupportMixin,
+    ConflictError,
 )
 from sync.providers.common import (
     unixify_path,
@@ -32,7 +34,7 @@ LOGGER = logging.getLogger(__name__)
 #  (e.g. to avoid recomputing hashes when there seem to be no reason to do so, like
 #  both size and modification time is unchanged), this probably can be united with
 #  the other provider state
-class FSProvider(ProviderBase):
+class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     BUFFER_SIZE = 4096
     SUPPORTED_HASH_TYPES = [HashType.SHA256, HashType.DROPBOX_SHA256]
 
@@ -131,6 +133,18 @@ class FSProvider(ProviderBase):
 
         # now atomically move temp file
         shutil.move(temp_file.name, abs_path)
+
+    def update(self, path: str, content: BinaryIO, revision: str) -> None:
+        # not bullet-proof, but still allows to limit concurrency issues
+        abs_path = self._abs_path(path)
+        current_state = self._file_state(abs_path)
+
+        if current_state.revision != revision:
+            raise ConflictError(
+                f'Can not update "{path}" due to conflict as revision tag does '
+                f'not match current state')
+
+        self.write(path, content)
 
     def remove(self, path: str):
         abs_path = self._abs_path(path)
