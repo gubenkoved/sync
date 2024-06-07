@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 import argparse
+from argparse import RawTextHelpFormatter
 import logging
 import sys
 from typing import List, Optional
@@ -95,7 +96,32 @@ def init_provider(args: List[str]):
 
 
 def entrypoint():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="""
+Provider options have to be passed in key=value format.
+
+Supported providers:
+
+FS - File system
+    root: Path to root directory
+D - Dropbox
+    root: Path to root directory
+    id: User arbitrary ID for account
+
+    auth options:
+        access_token
+    or
+        refresh_token
+        app_key
+        app_secret
+SFTP - SFTP (Linux hosts only)
+    host: ip or hostname of target
+    root: Path to root directory
+    key: Optional path to key file
+    pass: Optional pass
+    port: Optional port number (22 is default)
+""", formatter_class=RawTextHelpFormatter)
+
     parser.add_argument(
         '--log-level', type=str, required=False, default='info')
 
