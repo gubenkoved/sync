@@ -100,6 +100,7 @@ class STFPProvider(ProviderBase):
     def _file_state(ssh: paramiko.SSHClient, full_path: str):
         return FileState(
             content_hash=STFPProvider._sha256_file(ssh, full_path),
+            hash_type=HashType.SHA256,
         )
 
     def get_state(self, depth: int | None = None) -> StorageState:

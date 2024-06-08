@@ -94,6 +94,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
     def _file_metadata_to_file_state(entry: FileMetadata):
         return FileState(
             content_hash=entry.content_hash,
+            hash_type=HashType.DROPBOX_SHA256,
             revision=entry.rev,
         )
 

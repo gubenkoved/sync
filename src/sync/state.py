@@ -1,10 +1,15 @@
 import pickle
 from typing import BinaryIO, Dict
 
+from sync.hashing import HashType
+
 
 class FileState:
-    def __init__(self, content_hash: str, revision: str = None):
+    def __init__(
+            self, content_hash: str, hash_type: HashType,
+            revision: str = None):
         self.content_hash: str = content_hash
+        self.hash_type: HashType = hash_type
         self.revision: str = revision
 
     def __repr__(self):

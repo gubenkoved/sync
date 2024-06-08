@@ -55,7 +55,8 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
 
     def _file_state(self, abs_path: str) -> FileState:
         return FileState(
-            content_hash=self._file_hash(abs_path),
+            content_hash=self._file_sha256(abs_path),
+            hash_type=HashType.SHA256,
             revision=str(os.path.getmtime(abs_path)),
         )
 
@@ -96,11 +97,11 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         except FileNotFoundError:
             raise FileNotFoundProviderError(f'File not found: {path}')
 
-    def _file_hash(self, path):
+    def _file_sha256(self, path):
         LOGGER.debug('compute hash for "%s"', path)
         abs_path = self._abs_path(path)
         with open(abs_path, 'rb') as f:
-            return hash_stream(f)
+            return sha256_stream(f)
 
     def read(self, path: str) -> BinaryIO:
         abs_path = self._abs_path(path)
