@@ -282,7 +282,7 @@ class SyncTestBase(TestCase):
                 'foo/boo', 'bar/boo-new'),
         ])
 
-    def test_case_only_file_change(self):
+    def test_case_only_filename_change(self):
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
 
@@ -299,11 +299,18 @@ class SyncTestBase(TestCase):
             MoveOnDestinationSyncAction('foo/data', 'foo/Data'),
         ])
 
-        dst_provider.move('foo/Data', 'Foo/data')
+        dst_provider.move('foo/Data', 'foo/DATA')
 
         self.do_sync([
-            MoveOnSourceSyncAction('foo/Data', 'Foo/data'),
+            MoveOnSourceSyncAction('foo/Data', 'foo/DATA'),
         ])
+
+    # TODO: write this tricky test where folder names are changing for case
+    #  insensitive providers... there could also be multiple moves which use
+    #  different folder casing for the same directory... what do we expect
+    #  for these cases after all?
+    # def test_case_only_moves_with_folder_name_changes(self):
+    #     raise NotImplementedError
 
 
 if __name__ == '__main__':
