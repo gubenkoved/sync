@@ -1,6 +1,7 @@
 import io
 import logging
 from typing import BinaryIO, Optional, List
+import uuid
 
 import dropbox
 from dropbox.exceptions import ApiError
@@ -46,6 +47,11 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             'account_id': self.account_id,
             'root_dir': self.root_dir,
         })
+
+    def is_case_sensitive(self) -> bool:
+        # Dropbox is case-insensitive, it makes efforts to be case-preserving
+        # https://www.dropboxforum.com/t5/Dropbox-API-Support-Feedback/Case-Sensitivity-in-API-2/td-p/191279
+        return False
 
     def _get_dropbox(self) -> dropbox.Dropbox:
         if self._dropbox is None:
@@ -201,9 +207,21 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
 
         source_full_path = self._get_full_path(source_path)
         destination_full_path = self._get_full_path(destination_path)
+        is_case_only_change = source_full_path.lower() == destination_full_path.lower()
 
         try:
-            dbx.files_move_v2(source_full_path, destination_full_path)
+            # https://www.dropbox.com/developers/documentation/http/documentation#files-move
+            # note that we do not currently support case-only renaming
+            if not is_case_only_change:
+                dbx.files_move_v2(source_full_path, destination_full_path)
+            else:
+                LOGGER.warning(
+                    'case-only movement requested "%s" -> "%s", '
+                    'will use temporary path', source_path, destination_path)
+                uniquifier = '.moving.' + str(uuid.uuid4())[:8]
+                intermediary_path = destination_full_path + uniquifier
+                dbx.files_move_v2(source_full_path, intermediary_path)
+                dbx.files_move_v2(intermediary_path, destination_full_path)
         except ApiError as err:
             if 'not_found' in str(err):
                 raise FileNotFoundProviderError(
@@ -223,3 +241,13 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         if not isinstance(result, FileMetadata):
             raise ProviderError('Expected file by path "%s"' % path)
         return result.content_hash
+
+    def clone(self) -> 'ProviderBase':
+        return DropboxProvider(
+            self.account_id,
+            self.token,
+            self.root_dir,
+            self.is_refresh_token,
+            self.app_key,
+            self.app_secret,
+        )

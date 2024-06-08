@@ -35,6 +35,10 @@ class ProviderBase(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def is_case_sensitive(self) -> bool:
+        raise NotImplementedError
+
     # TODO: validate depth parameters on some generic level
     @abstractmethod
     def get_state(self, depth: int | None = None) -> StorageState:
@@ -66,6 +70,11 @@ class ProviderBase(ABC):
 
     @abstractmethod
     def compute_hash(self, path: str, hash_type: HashType) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def clone(self) -> 'ProviderBase':
+        """Returns a new instance of the provider with the same settings"""
         raise NotImplementedError
 
 

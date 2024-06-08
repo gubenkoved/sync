@@ -281,6 +281,29 @@ class SyncTestBase(TestCase):
                 'foo/boo', 'bar/boo-new'),
         ])
 
+    def test_case_only_file_change(self):
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
+
+        with bytes_as_stream(b'data') as stream:
+            src_provider.write('foo/data', stream)
+
+        self.do_sync([
+            UploadSyncAction('foo/data'),
+        ])
+
+        src_provider.move('foo/data', 'foo/Data')
+
+        self.do_sync([
+            MoveOnDestinationSyncAction('foo/data', 'foo/Data'),
+        ])
+
+        dst_provider.move('foo/Data', 'Foo/data')
+
+        self.do_sync([
+            MoveOnSourceSyncAction('foo/Data', 'Foo/data'),
+        ])
+
 
 if __name__ == '__main__':
     pytest.main()

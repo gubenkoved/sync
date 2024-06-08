@@ -264,6 +264,69 @@ class ProviderTestBase(unittest.TestCase):
         state = provider.get_state()
         self.assertEqual(0, len(state.files))
 
+    def test_move_when_only_case_is_different(self):
+        provider = self.get_provider()
+
+        with bytes_as_stream(b'data') as stream:
+            provider.write('foo/data', stream)
+
+        provider.move('foo/data', 'foo/Data')
+
+        state = provider.get_state()
+        self.assertEqual({'foo/Data'}, set(state.files))
+
+    def test_case_sensitivity_if_supported(self):
+        provider = self.get_provider()
+
+        if not provider.is_case_sensitive():
+            self.skipTest('not supported')
+
+        with bytes_as_stream(b'data1') as stream:
+            provider.write('foo/data', stream)
+
+        with bytes_as_stream(b'data2') as stream:
+            provider.write('foo/Data', stream)
+
+        with bytes_as_stream(b'data3') as stream:
+            provider.write('Foo/Data', stream)
+
+        state = provider.get_state()
+        self.assertEqual({'foo/data', 'foo/Data', 'Foo/Data'}, set(state.files))
+
+        self.assertEqual(b'data1', stream_to_bytes(provider.read('foo/data')))
+        self.assertEqual(b'data2', stream_to_bytes(provider.read('foo/Data')))
+        self.assertEqual(b'data3', stream_to_bytes(provider.read('Foo/Data')))
+
+    def test_two_files_use_different_parent_dir_casing(self):
+        provider = self.get_provider()
+
+        with bytes_as_stream(b'data1') as stream:
+            provider.write('foo/data1', stream)
+
+        with bytes_as_stream(b'data2') as stream:
+            provider.write('Foo/data2', stream)
+
+        state = provider.get_state()
+
+        if provider.is_case_sensitive():
+            self.assertEqual({'foo/data1', 'Foo/data2'}, set(state.files))
+        else:
+            self.assertEqual({'foo/data1', 'foo/data2'}, set(state.files))
+
+    def test_possible_to_download_by_different_cased_name_if_provider_case_insensitive(self):
+        provider = self.get_provider()
+
+        if provider.is_case_sensitive():
+            self.skipTest('not supported')
+
+        with bytes_as_stream(b'data1') as stream:
+            provider.write('foo/data1', stream)
+
+        self.assertEqual(b'data1', stream_to_bytes(provider.read('foo/data1')))
+        self.assertEqual(b'data1', stream_to_bytes(provider.read('foo/Data1')))
+        self.assertEqual(b'data1', stream_to_bytes(provider.read('Foo/Data1')))
+        self.assertEqual(b'data1', stream_to_bytes(provider.read('FOO/DATA1')))
+
 
 if __name__ == '__main__':
     unittest.main()

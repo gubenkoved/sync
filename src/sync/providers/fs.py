@@ -50,6 +50,11 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
             'root_dir': self.root_dir,
         })
 
+    def is_case_sensitive(self) -> bool:
+        if os.name == 'nt':
+            return False
+        return True
+
     def _file_state(self, abs_path: str) -> FileState:
         return FileState(
             content_hash=self._file_sha256(abs_path),
@@ -112,7 +117,9 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     def _ensure_dir(dir_path: str):
         if not os.path.exists(dir_path):
             LOGGER.debug(f'creating directory {dir_path}...')
-            os.makedirs(dir_path)
+            # exist_ok allows to handle concurrency induced error that dir
+            # is already exists
+            os.makedirs(dir_path, exist_ok=True)
 
     def write(self, path: str, stream: BinaryIO):
         abs_path = self._abs_path(path)
@@ -185,3 +192,6 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
                     raise NotImplementedError
         except FileNotFoundError:
             raise FileNotFoundProviderError(f'File not found: {path}')
+
+    def clone(self) -> 'ProviderBase':
+        return FSProvider(self.root_dir)

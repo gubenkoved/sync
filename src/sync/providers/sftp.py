@@ -56,6 +56,10 @@ class STFPProvider(ProviderBase):
             'root_dir': self.root_dir,
         })
 
+    def is_case_sensitive(self) -> bool:
+        # again, assumption is that target is Unix
+        return True
+
     def _need_reconnect(self) -> bool:
         if self.__ssh_client is None:
             return True
@@ -227,3 +231,13 @@ class STFPProvider(ProviderBase):
             full_path = path_join(self.root_dir, path)
             return self._sha256_file(ssh, full_path)
         raise Exception('not supported')
+
+    def clone(self) -> 'ProviderBase':
+        return STFPProvider(
+            self.host,
+            self.username,
+            self.root_dir,
+            self.password,
+            self.key_path,
+            self.port,
+        )
