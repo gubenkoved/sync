@@ -1,5 +1,6 @@
 import io
 import logging
+import time
 from typing import BinaryIO, Optional, List
 import uuid
 
@@ -202,6 +203,23 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
                 raise FileNotFoundProviderError(f'File not found at {full_path}') from err
             raise
 
+    @staticmethod
+    def __move_wrapped(dbx: dropbox.Dropbox, src_path: str, dst_path: str):
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                dbx.files_move_v2(src_path, dst_path)
+                break
+            except ApiError as err:
+                if attempt <= 3 and 'too_many_write_operations' in str(err):
+                    LOGGER.warning('Got "too_many_write_operations" error, attempting retry...')
+                    time.sleep(1.0)
+                    continue
+
+                # reraise other errors or if attempts exhausted
+                raise
+
     def move(self, source_path: str, destination_path: str) -> None:
         dbx = self._get_dropbox()
 
@@ -213,15 +231,15 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             # https://www.dropbox.com/developers/documentation/http/documentation#files-move
             # note that we do not currently support case-only renaming
             if not is_case_only_change:
-                dbx.files_move_v2(source_full_path, destination_full_path)
+                self.__move_wrapped(dbx, source_full_path, destination_full_path)
             else:
                 LOGGER.warning(
                     'case-only change movement requested "%s" -> "%s", '
                     'will use temporary path', source_path, destination_path)
                 uniquifier = '.moving.' + str(uuid.uuid4())[:8]
                 intermediary_path = destination_full_path + uniquifier
-                dbx.files_move_v2(source_full_path, intermediary_path)
-                dbx.files_move_v2(intermediary_path, destination_full_path)
+                self.__move_wrapped(dbx, source_full_path, intermediary_path)
+                self.__move_wrapped(dbx, intermediary_path, destination_full_path)
         except ApiError as err:
             if 'not_found' in str(err):
                 raise FileNotFoundProviderError(
