@@ -427,12 +427,14 @@ class Syncer:
                 # wait for all actions to run to completion
                 # this explicit wait is needed in order to support the interruption
                 # w/o having all futures to be resolved
+                wait_round = 1
                 while True:
                     all_done = all(future.done() for future in futures)
                     if all_done:
                         break
-                    time.sleep(5)
+                    time.sleep(min(5.0, 0.010 * (wait_round ** 1.5)))
                     LOGGER.debug('waiting for all sync actions to complete...')
+                    wait_round += 1
             except KeyboardInterrupt:
                 LOGGER.warning('interrupted, stop applying sync actions!')
                 executor.shutdown(wait=False, cancel_futures=True)
