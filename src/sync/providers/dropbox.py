@@ -47,6 +47,11 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             'root_dir': self.root_dir,
         })
 
+    def is_case_sensitive(self) -> bool:
+        # Dropbox is case-insensitive, it makes efforts to be case-preserving
+        # https://www.dropboxforum.com/t5/Dropbox-API-Support-Feedback/Case-Sensitivity-in-API-2/td-p/191279
+        return False
+
     def _get_dropbox(self) -> dropbox.Dropbox:
         if self._dropbox is None:
             if not self.is_refresh_token:

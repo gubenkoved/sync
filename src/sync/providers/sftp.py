@@ -56,6 +56,10 @@ class STFPProvider(ProviderBase):
             'root_dir': self.root_dir,
         })
 
+    def is_case_sensitive(self) -> bool:
+        # again, assumption is that target is Unix
+        return True
+
     def _need_reconnect(self) -> bool:
         if self.__ssh_client is None:
             return True

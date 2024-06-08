@@ -50,6 +50,11 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
             'root_dir': self.root_dir,
         })
 
+    def is_case_sensitive(self) -> bool:
+        if os.name == 'nt':
+            return False
+        return True
+
     def _file_state(self, abs_path: str) -> FileState:
         return FileState(
             content_hash=self._file_sha256(abs_path),

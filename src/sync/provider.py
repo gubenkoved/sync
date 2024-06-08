@@ -35,6 +35,10 @@ class ProviderBase(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def is_case_sensitive(self) -> bool:
+        raise NotImplementedError
+
     # TODO: validate depth parameters on some generic level
     @abstractmethod
     def get_state(self, depth: int | None = None) -> StorageState:
