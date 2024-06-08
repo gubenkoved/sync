@@ -25,7 +25,6 @@ from sync.state import (
 LOGGER = logging.getLogger(__name__)
 
 
-# TODO: support for proper caas-sensitivity detection aginst POSIX MacOS hosts
 class STFPProvider(ProviderBase):
     SUPPORTED_HASH_TYPES = [HashType.SHA256]
 
@@ -33,7 +32,8 @@ class STFPProvider(ProviderBase):
                  password: Optional[str] = None, key_path: Optional[str] = None,
                  port: int = 22):
         """
-        Implements SFTP provider with Unix as a target platform only.
+        Implements SFTP provider with POSIX-compatible (Unix, MacOS)
+        target platform only.
         """
         self.host = host
         self.username = username
@@ -47,6 +47,51 @@ class STFPProvider(ProviderBase):
 
         self.__ssh_client = None
         self.__sftp_client = None
+        self.__is_case_sensitive = self.__determine_if_case_sensitive()
+
+        LOGGER.debug(
+            'remove file system case-sensitive? %s ', self.__is_case_sensitive)
+
+    def __determine_if_case_sensitive(self):
+        ssh_client, _ = self._connect()
+
+        check_command = (
+            'TEST_PATH="$(mktemp).case.test"; '
+            'touch "$TEST_PATH"; '
+            'TEST_PATH_UPPER="$(echo "$TEST_PATH" | tr "[:lower:]" "[:upper:]")"; '
+            'test -f $TEST_PATH_UPPER && echo "case-insensitive" || echo "case-sensitive";'
+        )
+
+        stdout, _ = self.__run_ssh_command(check_command)
+        stdout = stdout.strip()
+
+        if stdout == 'case-insensitive':
+            return False
+        elif stdout == 'case-sensitive':
+            return True
+        else:
+            raise ProviderError(
+                'unexpected output, unable to determine case '
+                'sensitivity: "%s"' % stdout)
+
+    def __run_ssh_command(self, command):
+        ssh_client, _ = self._connect()
+
+        _, stdout, stderr = ssh_client.exec_command(command)
+
+        stdout_string = stdout.read().decode('utf-8')
+        stderr_string = stderr.read().decode('utf-8')
+
+        exit_code = stdout.channel.recv_exit_status()
+        if exit_code != 0:
+            if stdout_string:
+                LOGGER.error('STDOUT: %s', stdout_string)
+            if stderr_string:
+                LOGGER.error('STDERR: %s', stderr_string)
+            raise ProviderError(
+                'Command "%s" failed with exit code %s' %(command, exit_code))
+
+        return stdout_string, stderr_string
 
     def get_label(self) -> str:
         return 'SFTP(%s@%s:%s)' % (self.username, self.host, self.root_dir)
@@ -58,8 +103,7 @@ class STFPProvider(ProviderBase):
         })
 
     def is_case_sensitive(self) -> bool:
-        # again, assumption is that target is Unix
-        return True
+        return self.__is_case_sensitive
 
     def _need_reconnect(self) -> bool:
         if self.__ssh_client is None:

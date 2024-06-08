@@ -116,7 +116,7 @@ D - Dropbox
         refresh_token
         app_key
         app_secret
-SFTP - SFTP (Linux hosts only)
+SFTP - SFTP (POSIX hosts only)
     host: ip or hostname of target
     root: Path to root directory
     key: Optional path to key file
