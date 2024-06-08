@@ -208,6 +208,8 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         destination_full_path = self._get_full_path(destination_path)
 
         try:
+            # https://www.dropbox.com/developers/documentation/http/documentation#files-move
+            # note that we do not currently support case-only renaming
             dbx.files_move_v2(source_full_path, destination_full_path)
         except ApiError as err:
             if 'not_found' in str(err):
