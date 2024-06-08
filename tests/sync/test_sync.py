@@ -9,6 +9,7 @@ from sync.core import (
     RemoveOnSourceSyncAction, RemoveOnDestinationSyncAction,
     MoveOnSourceSyncAction, MoveOnDestinationSyncAction,
     ResolveConflictSyncAction,
+    Syncer,
 )
 from tests.common import bytes_as_stream, stream_to_bytes, random_bytes_stream
 
@@ -18,7 +19,7 @@ class SyncTestBase(TestCase):
 
     @property
     @abc.abstractmethod
-    def syncer(self):
+    def syncer(self) -> Syncer:
         raise NotImplementedError
 
     def tearDown(self):

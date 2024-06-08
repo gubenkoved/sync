@@ -188,8 +188,11 @@ class Syncer:
         with open(self.get_state_file_path(), 'wb') as f:
             return state.save(f)
 
+    def compare(self, path: str) -> bool:
+        return self.__compare(path, self.src_provider, self.dst_provider)
+
     @staticmethod
-    def compare(path: str, src_provider: ProviderBase, dst_provider: ProviderBase) -> bool:
+    def __compare(path: str, src_provider: ProviderBase, dst_provider: ProviderBase) -> bool:
         """
         Compares files at given relative path between source and destination
         providers. Note that direct comparison of content hash is not correct
@@ -377,7 +380,7 @@ class Syncer:
                 src_provider.remove(action.path)
                 src_state.files.pop(action.path)
             elif isinstance(action, ResolveConflictSyncAction):
-                are_equal = self.compare(action.path)
+                are_equal = self.__compare(action.path, src_provider, dst_provider)
                 if not are_equal:
                     raise SyncError(
                         'Unable to resolve conflict for "%s" -- files are '
