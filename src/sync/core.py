@@ -438,6 +438,8 @@ class Syncer:
                 executor.shutdown(wait=False, cancel_futures=True)
                 raise  # reraise the exception
 
+        LOGGER.debug('all sync actions completed')
+
         if sync_errors:
             raise SyncError(
                 '%d sync error occurred (see logs)' % len(sync_errors))
