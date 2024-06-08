@@ -60,7 +60,7 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
 
     def __determine_if_case_sensitive(self):
         with tempfile.NamedTemporaryFile(suffix='case-test') as tmp_file:
-            return os.path.exists(tmp_file.name.upper())
+            return not os.path.exists(tmp_file.name.upper())
 
     def is_case_sensitive(self) -> bool:
         return self.__is_case_sensitive
