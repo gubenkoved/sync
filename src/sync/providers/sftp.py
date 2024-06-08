@@ -51,7 +51,8 @@ class STFPProvider(ProviderBase):
         self.__is_case_sensitive = self.__determine_if_case_sensitive()
 
         LOGGER.debug(
-            'remove file system case-sensitive? %s ', self.__is_case_sensitive)
+            'is remote file system case-sensitive? %s ',
+            self.__is_case_sensitive)
 
     def __determine_if_case_sensitive(self):
         ssh_client, _ = self._connect()
