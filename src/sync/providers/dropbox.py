@@ -1,6 +1,7 @@
 import io
 import logging
 from typing import BinaryIO, Optional, List
+import uuid
 
 import dropbox
 from dropbox.exceptions import ApiError
@@ -206,11 +207,21 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
 
         source_full_path = self._get_full_path(source_path)
         destination_full_path = self._get_full_path(destination_path)
+        is_case_only_change = source_full_path.lower() == destination_full_path.lower()
 
         try:
             # https://www.dropbox.com/developers/documentation/http/documentation#files-move
             # note that we do not currently support case-only renaming
-            dbx.files_move_v2(source_full_path, destination_full_path)
+            if not is_case_only_change:
+                dbx.files_move_v2(source_full_path, destination_full_path)
+            else:
+                LOGGER.warning(
+                    'case-only movement requested "%s" -> "%s", '
+                    'will use temporary path', source_path, destination_path)
+                uniquifier = '.moving.' + str(uuid.uuid4())[:8]
+                intermediary_path = destination_full_path + uniquifier
+                dbx.files_move_v2(source_full_path, intermediary_path)
+                dbx.files_move_v2(intermediary_path, destination_full_path)
         except ApiError as err:
             if 'not_found' in str(err):
                 raise FileNotFoundProviderError(
