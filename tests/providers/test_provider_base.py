@@ -347,6 +347,16 @@ class ProviderTestBase(unittest.TestCase):
         self.assertEqual(b'data1', stream_to_bytes(provider.read('Foo/Data1')))
         self.assertEqual(b'data1', stream_to_bytes(provider.read('FOO/DATA1')))
 
+    def test_move_to_non_existing_directory(self):
+        provider = self.get_provider()
+
+        with bytes_as_stream(b'data1') as stream:
+            provider.write('foo/data', stream)
+
+        provider.move('foo/data', 'bar/data')
+
+        self.assertEqual({'bar/data'}, set(provider.get_state().files))
+
 
 if __name__ == '__main__':
     unittest.main()

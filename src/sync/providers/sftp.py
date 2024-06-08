@@ -270,6 +270,10 @@ class STFPProvider(ProviderBase):
                 source_path, destination_path)
 
         try:
+            # make sure target directory exists
+            dir_path, _ = path_split(destination_full_path)
+            self._ensure_dir(ssh, dir_path)
+
             # for some reason OSError: Failure occurs when case-only move is
             # attempted for case-insensitive file systems, so use temporary file
             if not is_case_only_change:
