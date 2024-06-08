@@ -42,9 +42,6 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         LOGGER.debug('init FS provider with root at "%s"', root_dir)
         self.root_dir = os.path.abspath(os.path.expanduser(root_dir))
 
-        if not os.path.exists(self.root_dir):
-            raise SyncError('root directory "%s" does not exist' % self.root_dir)
-
     def get_label(self) -> str:
         return 'FS(%s)' % self.root_dir
 
@@ -78,6 +75,7 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
                 elif entry.is_dir():
                     walk(entry.path, level + 1)
 
+        self._ensure_dir(self.root_dir)
         walk(self.root_dir, level=1)
 
         LOGGER.debug('discovered %d files', len(files))

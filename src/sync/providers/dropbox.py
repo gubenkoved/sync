@@ -127,7 +127,9 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         for entry in self._list_folder(dbx, self.root_dir, recursive=True):
             if isinstance(entry, FileMetadata):
                 full_path = entry.path_display
-                assert full_path.startswith(self.root_dir)
+                assert full_path.startswith(self.root_dir), \
+                    'Full path outside of root dir (%s): "%s"' % (
+                        self.root_dir, full_path)
                 rel_path = relative_path(full_path, self.root_dir)
                 files[rel_path] = self._file_metadata_to_file_state(entry)
 
