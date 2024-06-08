@@ -250,6 +250,7 @@ class STFPProvider(ProviderBase):
         ssh, sftp = self._connect()
         source_full_path = self._full_path(source_path)
         destination_full_path = self._full_path(destination_path)
+        is_case_only_change = source_path.lower() == destination_path.lower()
 
         try:
             sftp.lstat(destination_full_path)
@@ -257,9 +258,14 @@ class STFPProvider(ProviderBase):
         except FileNotFoundError:
             destination_exists = False
 
-        if destination_exists:
-            raise FileAlreadyExistsError(
-                f'File already exists: {destination_full_path}')
+        if self.is_case_sensitive() or not is_case_only_change:
+            if destination_exists:
+                raise FileAlreadyExistsError(
+                    f'File already exists: {destination_full_path}')
+        else:
+            LOGGER.warning(
+                'case-only change movement requested "%s" -> "%s"',
+                source_path, destination_path)
 
         try:
             sftp.rename(source_full_path, destination_full_path)
