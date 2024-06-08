@@ -2,6 +2,7 @@ import io
 import logging
 import os.path
 import shlex
+import uuid
 from stat import S_ISDIR, S_ISREG
 from typing import BinaryIO, Optional, Tuple, List
 
@@ -268,7 +269,18 @@ class STFPProvider(ProviderBase):
                 source_path, destination_path)
 
         try:
-            sftp.rename(source_full_path, destination_full_path)
+            # for some reason OSError: Failure occurs when case-only move is
+            # attempted for case-insensitive file systems, so use temporary file
+            if not is_case_only_change:
+                sftp.rename(source_full_path, destination_full_path)
+            else:
+                LOGGER.warning(
+                    'case-only change movement requested "%s" -> "%s", '
+                    'will use temporary path', source_path, destination_path)
+                uniquifier = '.moving.' + str(uuid.uuid4())[:8]
+                intermediary_path = destination_full_path + uniquifier
+                sftp.rename(source_full_path, intermediary_path)
+                sftp.rename(intermediary_path, destination_full_path)
         except FileNotFoundError:
             raise FileNotFoundProviderError(
                 f'File not found: {source_full_path}')
