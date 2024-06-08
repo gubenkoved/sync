@@ -117,7 +117,9 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     def _ensure_dir(dir_path: str):
         if not os.path.exists(dir_path):
             LOGGER.debug(f'creating directory {dir_path}...')
-            os.makedirs(dir_path)
+            # exist_ok allows to handle concurrency induced error that dir
+            # is already exists
+            os.makedirs(dir_path, exist_ok=True)
 
     def write(self, path: str, stream: BinaryIO):
         abs_path = self._abs_path(path)
