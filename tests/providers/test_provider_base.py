@@ -1,4 +1,5 @@
 import abc
+import time
 import unittest
 
 import pytest
@@ -17,6 +18,10 @@ from tests.common import (
     stream_to_bytes,
     random_bytes_stream,
 )
+
+import logging
+
+LOGGER = logging.getLogger(__name__)
 
 
 class ProviderTestBase(unittest.TestCase):
@@ -220,13 +225,28 @@ class ProviderTestBase(unittest.TestCase):
         if not isinstance(provider, SafeUpdateSupportMixin):
             self.skipTest('not supported')
 
+        # to make static analyzers happy
+        assert isinstance(provider, ProviderBase) and isinstance(provider, SafeUpdateSupportMixin)
+
         with bytes_as_stream(b'test') as stream:
             provider.write('foo.file', stream)
 
         file_state = provider.get_file_state('foo.file')
 
-        with bytes_as_stream(b'test2') as stream:
-            provider.update('foo.file', stream, file_state.revision)
+        # avoid timing error -- if file is modified very fast its modification
+        # time can be unchanged
+        attempt = 1
+        while attempt < 3:
+            with bytes_as_stream(b'test2') as stream:
+                provider.update('foo.file', stream, file_state.revision)
+            file_state_after = provider.get_file_state('foo.file')
+
+            if file_state.revision != file_state_after.revision:
+                break
+
+            LOGGER.warning('same revision after the update!')
+            time.sleep(0.1)
+            attempt += 1
 
         # make sure update happened
         with provider.read('foo.file') as stream:
