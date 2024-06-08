@@ -64,8 +64,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
 
     def _get_full_path(self, path: str):
         full_path = path_join(self.root_dir, path)
-        if not full_path.startswith(self.root_dir):
-            raise ProviderError('Path outside of the root dir!')
+        self.__ensure_inside_root(full_path)
         return full_path
 
     def _ensure_root_dir(self, dbx: dropbox.Dropbox):
@@ -98,6 +97,14 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             revision=entry.rev,
         )
 
+    def __ensure_inside_root(self, full_path: str):
+        # for some reason Dropbox can return entries with different casing
+        # so when we check we lowercase both even though paths on Unix
+        # are case-sensitive and not sensitive on Windows
+        assert full_path.lower().startswith(self.root_dir.lower()), \
+            'Full path outside of root dir (%s): "%s"' % (
+                self.root_dir, full_path)
+
     def __get_state_walking(self, max_depth: int):
         dbx = self._get_dropbox()
         files = {}
@@ -109,7 +116,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             for entry in self._list_folder(dbx, path):
                 if isinstance(entry, FileMetadata):
                     full_path = entry.path_display
-                    assert full_path.startswith(self.root_dir)
+                    self.__ensure_inside_root(full_path)
                     rel_path = relative_path(full_path, self.root_dir)
                     files[rel_path] = self._file_metadata_to_file_state(entry)
                 elif isinstance(entry, FolderMetadata):
@@ -127,9 +134,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         for entry in self._list_folder(dbx, self.root_dir, recursive=True):
             if isinstance(entry, FileMetadata):
                 full_path = entry.path_display
-                assert full_path.startswith(self.root_dir), \
-                    'Full path outside of root dir (%s): "%s"' % (
-                        self.root_dir, full_path)
+                self.__ensure_inside_root(full_path)
                 rel_path = relative_path(full_path, self.root_dir)
                 files[rel_path] = self._file_metadata_to_file_state(entry)
 
