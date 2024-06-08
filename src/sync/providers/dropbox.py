@@ -216,7 +216,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
                 dbx.files_move_v2(source_full_path, destination_full_path)
             else:
                 LOGGER.warning(
-                    'case-only movement requested "%s" -> "%s", '
+                    'case-only change movement requested "%s" -> "%s", '
                     'will use temporary path', source_path, destination_path)
                 uniquifier = '.moving.' + str(uuid.uuid4())[:8]
                 intermediary_path = destination_full_path + uniquifier

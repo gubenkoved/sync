@@ -159,10 +159,16 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     def move(self, source_path: str, destination_path: str):
         source_abs_path = self._abs_path(source_path)
         destination_abs_path = self._abs_path(destination_path)
+        is_case_only_change = source_path.lower() == destination_path.lower()
 
-        if os.path.exists(destination_abs_path):
-            raise FileAlreadyExistsError(
-                f'File already exists: {destination_path}')
+        if self.is_case_sensitive() or not is_case_only_change:
+            if os.path.exists(destination_abs_path):
+                raise FileAlreadyExistsError(
+                    f'File already exists: {destination_path}')
+        else:
+            LOGGER.warning(
+                'case-only change movement requested "%s" -> "%s"',
+                source_path, destination_path)
 
         # ensure destination directory if missing
         destination_dir, _ = os.path.split(destination_abs_path)
