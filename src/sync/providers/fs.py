@@ -42,6 +42,11 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         LOGGER.debug('init FS provider with root at "%s"', root_dir)
         self.root_dir = os.path.abspath(os.path.expanduser(root_dir))
 
+        # it is not really possible to determine if file system case sensitive
+        # using os.name for instance as both Linux and MacOS will report "posix"
+        # but MacOS will not be case sensitive by default
+        self.__determine_case_sensitivity()
+
     def get_label(self) -> str:
         return 'FS(%s)' % self.root_dir
 
@@ -50,10 +55,17 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
             'root_dir': self.root_dir,
         })
 
+    def __determine_case_sensitivity(self):
+        with tempfile.NamedTemporaryFile(suffix='case-test') as tmp_file:
+            if os.path.exists(tmp_file.name.upper()):
+                self.__is_case_sensitive = False
+            else:
+                self.__is_case_sensitive = True
+        LOGGER.debug(
+            'is case sensitive file system? %s', self.__is_case_sensitive)
+
     def is_case_sensitive(self) -> bool:
-        if os.name == 'nt':
-            return False
-        return True
+        return self.__is_case_sensitive
 
     def _file_state(self, abs_path: str) -> FileState:
         return FileState(

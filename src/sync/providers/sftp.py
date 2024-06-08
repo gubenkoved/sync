@@ -25,6 +25,7 @@ from sync.state import (
 LOGGER = logging.getLogger(__name__)
 
 
+# TODO: support for proper caas-sensitivity detection aginst POSIX MacOS hosts
 class STFPProvider(ProviderBase):
     SUPPORTED_HASH_TYPES = [HashType.SHA256]
 
