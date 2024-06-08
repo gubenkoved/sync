@@ -216,7 +216,7 @@ class Syncer:
             src_hash = src_provider.compute_hash(path, hash_type)
             dst_hash = dst_provider.compute_hash(path, hash_type)
         else:  # download and compute locally
-            LOGGER.debug('no shared hashes, compare locally: %s', shared_hash_types)
+            LOGGER.debug('no shared hashes, download both and compare locally')
             src_hash = hash_stream(src_provider.read(path))
             dst_hash = hash_stream(dst_provider.read(path))
 
