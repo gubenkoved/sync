@@ -1,4 +1,5 @@
 import abc
+import concurrent.futures
 import fnmatch
 import logging
 import os.path
@@ -135,12 +136,14 @@ class Syncer:
                  dst_provider: ProviderBase,
                  state_root_dir: str = '.state',
                  filter_glob: Optional[str] = None,
-                 depth: int | None = None):
+                 depth: int | None = None,
+                 threads: int | None = None):
         self.src_provider: ProviderBase = src_provider
         self.dst_provider: ProviderBase = dst_provider
         self.state_root_dir: str = os.path.abspath(os.path.expanduser(state_root_dir))
         self.filter_glob: str | None = filter_glob
         self.depth: int | None = depth
+        self.threads: int | None = threads
 
         if not os.path.exists(self.state_root_dir):
             LOGGER.warning('state dir does not exist -> create')
@@ -310,11 +313,9 @@ class Syncer:
                 LOGGER.debug('writing file at "%s"', path)
                 provider.write(path, stream)
 
-        for action in sorted(actions.values(), key=lambda x: x.path):
-            if dry_run:
-                LOGGER.info('would apply %s', action)
-                continue
+        # TODO: store providers as threadLocal -- init when not initialized yet
 
+        def run_action(action: SyncAction):
             LOGGER.info('apply %s', action)
 
             if isinstance(action, UploadSyncAction):
@@ -359,6 +360,31 @@ class Syncer:
                 pass
             else:
                 raise NotImplementedError('action %s' % action)
+
+        sync_errors = []
+
+        def run_action_wrapped(action: SyncAction):
+            try:
+                run_action(action)
+            except Exception as exc:
+                sync_errors.append(exc)
+                LOGGER.error(
+                    'Error happened applying action %s: %s',
+                    action, exc, exc_info=True)
+
+        # TODO: use separate provider instance for each thread
+        # FIXME: Ctrl+C does not work when thread pool executor is running for
+        #  some reason
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.threads) as executor:
+            for action in sorted(actions.values(), key=lambda x: x.path):
+                if dry_run:
+                    LOGGER.info('would apply %s', action)
+                    continue
+                executor.submit(run_action_wrapped, action)
+
+        if sync_errors:
+            raise SyncError(
+                '%d sync error occurred (see logs)' % len(sync_errors))
 
         if len(actions):
             counter = Counter(action.TYPE for action in actions.values())

@@ -19,14 +19,16 @@ LOGGER = logging.getLogger('cli')
 
 def main(source_provider: ProviderBase,
          destination_provider: ProviderBase,
-         dry_run: bool = False,
-         filter_glob: Optional[str] = None,
-         depth: int | None = None):
+         dry_run: bool,
+         filter_glob: Optional[str],
+         depth: int | None,
+         threads: int):
     syncer = Syncer(
         source_provider,
         destination_provider,
         filter_glob=filter_glob,
         depth=depth,
+        threads=threads,
     )
     syncer.sync(dry_run=dry_run)
 
@@ -134,11 +136,16 @@ SFTP - SFTP (Linux hosts only)
     parser.add_argument(
         '--depth', type=int, required=False, default=None)
     parser.add_argument(
+        '--threads', type=int, required=False, default=4)
+    parser.add_argument(
         '-f', '--filter-glob', type=str, default=None, required=False)
 
     args = parser.parse_args()
 
-    coloredlogs.install(logging.getLevelName(args.log_level.upper()))
+    coloredlogs.install(
+        level=logging.getLevelName(args.log_level.upper()),
+        fmt='%(asctime)s %(hostname)s %(name)s[%(process)d][%(threadName)s] %(levelname)s %(message)s',
+    )
 
     # disable too verbose logging
     logging.getLogger('dropbox').setLevel(logging.WARNING)
@@ -154,6 +161,7 @@ SFTP - SFTP (Linux hosts only)
             dry_run=args.dry_run,
             filter_glob=args.filter_glob,
             depth=args.depth,
+            threads=args.threads,
         )
     except Exception as err:
         LOGGER.fatal('error: %s', err, exc_info=True)
