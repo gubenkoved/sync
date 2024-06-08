@@ -230,3 +230,13 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         if not isinstance(result, FileMetadata):
             raise ProviderError('Expected file by path "%s"' % path)
         return result.content_hash
+
+    def clone(self) -> 'ProviderBase':
+        return DropboxProvider(
+            self.account_id,
+            self.token,
+            self.root_dir,
+            self.is_refresh_token,
+            self.app_key,
+            self.app_secret,
+        )

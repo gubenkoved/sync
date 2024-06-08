@@ -192,3 +192,6 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
                     raise NotImplementedError
         except FileNotFoundError:
             raise FileNotFoundProviderError(f'File not found: {path}')
+
+    def clone(self) -> 'ProviderBase':
+        return FSProvider(self.root_dir)

@@ -5,6 +5,8 @@ import fnmatch
 import logging
 import os.path
 import re
+import threading
+import time
 import typing
 from collections import Counter
 from typing import Dict, Optional, Callable, BinaryIO, Tuple, List
@@ -186,7 +188,8 @@ class Syncer:
         with open(self.get_state_file_path(), 'wb') as f:
             return state.save(f)
 
-    def compare(self, path: str) -> bool:
+    @staticmethod
+    def compare(path: str, src_provider: ProviderBase, dst_provider: ProviderBase) -> bool:
         """
         Compares files at given relative path between source and destination
         providers. Note that direct comparison of content hash is not correct
@@ -199,20 +202,20 @@ class Syncer:
 
         # see if we can compare hashes "remotely"
         shared_hash_types = (
-            set(self.src_provider.supported_hash_types()) &
-            set(self.dst_provider.supported_hash_types()))
+            set(src_provider.supported_hash_types()) &
+            set(dst_provider.supported_hash_types()))
 
         if shared_hash_types:
             LOGGER.debug(
                 'hashes supported by both providers: %s',
                 ', '.join(str(t) for t in shared_hash_types))
             hash_type = list(shared_hash_types)[0]
-            src_hash = self.src_provider.compute_hash(path, hash_type)
-            dst_hash = self.dst_provider.compute_hash(path, hash_type)
+            src_hash = src_provider.compute_hash(path, hash_type)
+            dst_hash = dst_provider.compute_hash(path, hash_type)
         else:  # download and compute locally
             LOGGER.debug('no shared hashes, compare locally: %s', shared_hash_types)
-            src_hash = hash_stream(self.src_provider.read(path))
-            dst_hash = hash_stream(self.dst_provider.read(path))
+            src_hash = hash_stream(src_provider.read(path))
+            dst_hash = hash_stream(dst_provider.read(path))
 
         LOGGER.debug(
             'source hash "%s", destination hash "%s"',
@@ -345,45 +348,50 @@ class Syncer:
                 LOGGER.debug('writing file at "%s"', path)
                 provider.write(path, stream)
 
-        # TODO: store providers as threadLocal -- init when not initialized yet
+        thread_local = threading.local()
+
+        def get_providers():
+            if not hasattr(thread_local, 'providers'):
+                LOGGER.debug('create new provider instances...')
+                thread_local.providers = self.src_provider.clone(), self.dst_provider.clone()
+            return thread_local.providers
+
+        # TODO: separate out sync actions executor for better clarity
         def run_action(action: SyncAction):
             LOGGER.info('apply %s', action)
 
+            src_provider, dst_provider = get_providers()
+
             if isinstance(action, UploadSyncAction):
-                stream = self.src_provider.read(action.path)
-                write(self.dst_provider, dst_state, action.path, stream)
-                dst_state.files[action.path] = self.dst_provider.get_file_state(action.path)
+                stream = src_provider.read(action.path)
+                write(dst_provider, dst_state, action.path, stream)
+                dst_state.files[action.path] = dst_provider.get_file_state(action.path)
             elif isinstance(action, DownloadSyncAction):
-                stream = self.dst_provider.read(action.path)
-                write(self.src_provider, src_state, action.path, stream)
-                src_state.files[action.path] = self.src_provider.get_file_state(action.path)
+                stream = dst_provider.read(action.path)
+                write(src_provider, src_state, action.path, stream)
+                src_state.files[action.path] = src_provider.get_file_state(action.path)
             elif isinstance(action, RemoveOnDestinationSyncAction):
-                self.dst_provider.remove(action.path)
+                dst_provider.remove(action.path)
                 dst_state.files.pop(action.path)
             elif isinstance(action, RemoveOnSourceSyncAction):
-                self.src_provider.remove(action.path)
+                src_provider.remove(action.path)
                 src_state.files.pop(action.path)
             elif isinstance(action, ResolveConflictSyncAction):
                 are_equal = self.compare(action.path)
                 if not are_equal:
-                    # TODO: conflict should not fully stop the sync process, we
-                    #  need to process other files and report the sync issues at
-                    #  the end; in the state files with conflicts should be
-                    #  marked accordingly or probably should not be included into
-                    #  set of files, so that they are considered "added" on both
-                    #  ends and conflict resolution repeats
                     raise SyncError(
-                        'Unable to resolve conflict for "%s"' % action.path)
+                        'Unable to resolve conflict for "%s" -- files are '
+                        'different!' % action.path)
                 else:
                     LOGGER.debug(
                         'resolved conflict for "%s" as files identical',
                         action.path)
             elif isinstance(action, MoveOnSourceSyncAction):
-                self.src_provider.move(action.path, action.new_path)
+                src_provider.move(action.path, action.new_path)
                 src_state.files[action.new_path] = src_state.files[action.path]
                 src_state.files.pop(action.path)
             elif isinstance(action, MoveOnDestinationSyncAction):
-                self.dst_provider.move(action.path, action.new_path)
+                dst_provider.move(action.path, action.new_path)
                 dst_state.files[action.new_path] = dst_state.files[action.path]
                 dst_state.files.pop(action.path)
             elif isinstance(action, NoopSyncAction):
@@ -403,15 +411,29 @@ class Syncer:
                     'Error happened applying action %s: %s',
                     action, exc, exc_info=True)
 
-        # TODO: use separate provider instance for each thread
-        # FIXME: Ctrl+C does not work when thread pool executor is running for
-        #  some reason
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.threads) as executor:
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=self.threads, thread_name_prefix='worker') as executor:
+            futures = []
             for action in sorted(actions.values(), key=lambda x: x.path):
                 if dry_run:
                     LOGGER.info('would apply %s', action)
                     continue
-                executor.submit(run_action_wrapped, action)
+                futures.append(executor.submit(run_action_wrapped, action))
+
+            try:
+                # wait for all actions to run to completion
+                # this explicit wait is needed in order to support the interruption
+                # w/o having all futures to be resolved
+                while True:
+                    all_done = all(future.done() for future in futures)
+                    if all_done:
+                        break
+                    time.sleep(5)
+                    LOGGER.debug('waiting for all sync actions to complete...')
+            except KeyboardInterrupt:
+                LOGGER.warning('interrupted, stop applying sync actions!')
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise  # reraise the exception
 
         if sync_errors:
             raise SyncError(

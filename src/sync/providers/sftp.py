@@ -231,3 +231,13 @@ class STFPProvider(ProviderBase):
             full_path = path_join(self.root_dir, path)
             return self._sha256_file(ssh, full_path)
         raise Exception('not supported')
+
+    def clone(self) -> 'ProviderBase':
+        return STFPProvider(
+            self.host,
+            self.username,
+            self.root_dir,
+            self.password,
+            self.key_path,
+            self.port,
+        )

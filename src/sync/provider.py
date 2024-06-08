@@ -72,6 +72,11 @@ class ProviderBase(ABC):
     def compute_hash(self, path: str, hash_type: HashType) -> str:
         raise NotImplementedError
 
+    @abstractmethod
+    def clone(self) -> 'ProviderBase':
+        """Returns a new instance of the provider with the same settings"""
+        raise NotImplementedError
+
 
 class SafeUpdateSupportMixin:
     @abstractmethod
