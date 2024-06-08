@@ -4,6 +4,9 @@ from typing import BinaryIO, Dict
 from sync.hashing import HashType
 
 
+# TODO: capture canonical name to cover the case where we provider is
+#  not case sensitive and we did not use a canonical name when we were
+#  requesting file
 class FileState:
     def __init__(
             self, content_hash: str, hash_type: HashType,

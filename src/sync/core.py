@@ -1,9 +1,11 @@
 import abc
+import collections
 import concurrent.futures
 import fnmatch
 import logging
 import os.path
 import re
+import typing
 from collections import Counter
 from typing import Dict, Optional, Callable, BinaryIO, Tuple, List
 
@@ -257,7 +259,7 @@ class Syncer:
         # some combinations are not possible w/o corrupted state like
         # ADDED/REMOVED combination means that we saw the file on destination, but
         # why it is ADDED on source then? It means we did not download it
-        action_matrix: Dict[Tuple[DiffType | None, DiffType | None], Callable[[DiffType, DiffType], SyncAction]] = {
+        action_matrix: Dict[Tuple[DiffType | None, DiffType | None], Callable[[DiffType | None, DiffType | None], SyncAction]] = {
             (None, AddedDiffType): lambda src, dst: DownloadSyncAction(dst.path),
             (None, RemovedDiffType): lambda src, dst: RemoveOnSourceSyncAction(dst.path),
             (None, ChangedDiffType): lambda src, dst: DownloadSyncAction(dst.path),
@@ -273,13 +275,43 @@ class Syncer:
             (MovedDiffType, None): lambda src, dst: MoveOnDestinationSyncAction(src.path, src.new_path),
         }
 
+        is_case_sensitive = (
+            self.src_provider.is_case_sensitive() and
+            self.dst_provider.is_case_sensitive()
+        )
+
+        def normalize_dict_keys(dictionary) -> dict[str, typing.Any]:
+            normalized_keys_counter = collections.defaultdict(int)
+
+            for key in dictionary:
+                normalized_keys_counter[self.__normalize_case(key, is_case_sensitive)] += 1
+
+            case_conflicting_keys = [
+                k for k, v in normalized_keys_counter.items() if v > 1]
+
+            if case_conflicting_keys:
+                raise SyncError(
+                    'Found multiple keys which are same after normalized'
+                    'case, can not sync!'
+                    'Working in case-insensitive mode because one or two '
+                    'providers in sync pair are case-insensitive')
+
+            return {self.__normalize_case(k, is_case_sensitive): v for k, v in dictionary.items()}
+
+        src_changes = normalize_dict_keys(src_full_diff.changes)
+        dst_changes = normalize_dict_keys(dst_full_diff.changes)
+
         # process both source and destination changes
-        changed_files = set(src_full_diff.changes) | set(dst_full_diff.changes)
+        changed_files = set(src_changes) | set(dst_changes)
 
         actions: Dict[str, SyncAction] = {}
         for path in changed_files:
-            src_diff = src_full_diff.changes.get(path, None)
-            dst_diff = dst_full_diff.changes.get(path, None)
+            src_diff = src_changes.get(path, None)
+            dst_diff = dst_changes.get(path, None)
+
+            LOGGER.debug(
+                'handling path %s, source diff: %s, destination diff: %s',
+                path, src_diff, dst_diff)
 
             src_diff_type = type(src_diff) if src_diff else None
             dst_diff_type = type(dst_diff) if dst_diff else None
@@ -288,7 +320,7 @@ class Syncer:
 
             if sync_action_fn is None:
                 raise SyncError(
-                    'undecidable for "%s" source diff %s, destination %s' % (
+                    'undecidable for "%s", source diff %s, destination diff %s' % (
                     path, src_diff_type, dst_diff_type))
 
             actions[path] = sync_action_fn(src_diff, dst_diff)
@@ -314,7 +346,6 @@ class Syncer:
                 provider.write(path, stream)
 
         # TODO: store providers as threadLocal -- init when not initialized yet
-
         def run_action(action: SyncAction):
             LOGGER.info('apply %s', action)
 
@@ -395,16 +426,7 @@ class Syncer:
             LOGGER.info('no changes to sync')
 
         if not dry_run:
-            # correctness check
-            missing_on_dst = set(dst_state.files) - set(src_state.files)
-            missing_on_src = set(src_state.files) - set(dst_state.files)
-
-            if missing_on_src or missing_on_dst:
-                raise SyncError(
-                    'Unknown correctness error detected! '
-                    'Missing on source: %s, missing on destination: %s' % (
-                        missing_on_src, missing_on_dst,
-                    ))
+            self.__correctness_check(src_state, dst_state, is_case_sensitive)
 
             LOGGER.debug('saving state')
             LOGGER.debug('src state: %s', src_state.files)
@@ -415,3 +437,30 @@ class Syncer:
             ))
 
         return list(actions.values())
+
+    @staticmethod
+    def __normalize_case(path: str, is_case_sensitive: bool = False):
+        if is_case_sensitive:
+            return path
+        return path.lower()
+
+    @staticmethod
+    def __correctness_check(
+            src_state: StorageState, dst_state: StorageState,
+            is_case_sensitive: bool):
+        src_files = set(
+            Syncer.__normalize_case(path, is_case_sensitive)
+            for path in src_state.files)
+        dst_files = set(
+            Syncer.__normalize_case(path, is_case_sensitive)
+            for path in dst_state.files)
+
+        missing_on_dst = dst_files - src_files
+        missing_on_src = src_files - dst_files
+
+        if missing_on_src or missing_on_dst:
+            raise SyncError(
+                'Unknown correctness error detected! '
+                'Missing on source: %s, missing on destination: %s' % (
+                    missing_on_src, missing_on_dst,
+                ))
