@@ -74,9 +74,15 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         self.__ensure_inside_root(full_path)
         return full_path
 
+    @staticmethod
+    def __dir(dir_path: str) -> str:
+        if dir_path == '/':
+            return ''  # by Dropbox convention
+        return dir_path
+
     def _ensure_root_dir(self, dbx: dropbox.Dropbox):
         try:
-            dbx.files_list_folder(self.root_dir, limit=1)
+            dbx.files_list_folder(self.__dir(self.root_dir), limit=1)
         except ApiError as err:
             if 'not_found' in str(err):
                 LOGGER.info('root directory was not found -> create')
@@ -87,7 +93,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         LOGGER.debug('listing folder %s (recursive? %s)', path, recursive)
         entries = []
         list_result = dbx.files_list_folder(
-            path, recursive=recursive, limit=LISTING_LIMIT)
+            self.__dir(path), recursive=recursive, limit=LISTING_LIMIT)
         LOGGER.debug('retrieved %s entries', len(list_result.entries))
         entries.extend(list_result.entries)
         while list_result.has_more:
