@@ -16,13 +16,14 @@ class FileState:
         self.revision: str = revision
 
     def __repr__(self):
-        return 'FileState(hash="%s", revision="%s")>' % (
-            self.content_hash, self.revision)
+        return 'FileState(content_hash="%s", hash_type="%s", revision="%s")>' % (
+            self.content_hash, self.hash_type, self.revision)
 
     def __eq__(self, other):
         if not isinstance(other, FileState):
             return False
         return (self.content_hash == other.content_hash and
+                self.hash_type == other.hash_type and
                 self.revision == other.revision)
 
 
