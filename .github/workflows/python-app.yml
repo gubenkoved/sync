@@ -28,8 +28,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install --upgrade setuptools
         pip install flake8 pytest build
-        # install package in editable mode
-        pip install -e .
+        # install package in editable mode and use current lock file 
+        # for build reproducibility
+        pip install -e . -c requirements.txt
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names

@@ -15,17 +15,17 @@ cffi==1.16.0
 charset-normalizer==3.3.2
     # via requests
 coloredlogs==15.0.1
-    # via -r requirements.in
+    # via sync (setup.py)
 cryptography==42.0.8
     # via paramiko
 dropbox==12.0.2
-    # via -r requirements.in
+    # via sync (setup.py)
 humanfriendly==10.0
     # via coloredlogs
 idna==3.7
     # via requests
 paramiko==3.4.0
-    # via -r requirements.in
+    # via sync (setup.py)
 ply==3.11
     # via stone
 pycparser==2.22
