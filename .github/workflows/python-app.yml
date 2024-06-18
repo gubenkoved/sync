@@ -27,7 +27,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install --upgrade setuptools
-        pip install flake8 pytest build
+        pip install flake8 pytest pytest-xdist build
         # install package in editable mode and use current lock file 
         # for build reproducibility
         pip install -e . -c requirements.txt
@@ -59,4 +59,4 @@ jobs:
       run: |
         echo ${SFTP_PRIVATE_KEY_BASE64} | base64 -d > ${SFTP_KEY_PATH}
         chmod 600 ${SFTP_KEY_PATH}
-        pytest -m 'not slow'
+        pytest -n auto -m 'not slow'
