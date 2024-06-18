@@ -42,6 +42,3 @@ stone==3.3.6
     # via dropbox
 urllib3==2.2.2
     # via requests
-
-# The following packages are considered to be unsafe in a requirements file:
-# setuptools
