@@ -3,11 +3,14 @@ import os.path
 import unittest
 import uuid
 
+import pytest
+
 from sync.core import ProviderBase
 from sync.providers.dropbox import DropboxProvider
 from tests.providers.test_provider_base import ProviderTestBase
 
 
+@pytest.mark.dropbox
 class DropboxProviderTest(ProviderTestBase):
     __test__ = True
 

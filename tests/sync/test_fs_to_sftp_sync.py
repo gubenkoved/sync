@@ -3,12 +3,15 @@ import shutil
 import tempfile
 import uuid
 
+import pytest
+
 from sync.core import Syncer
 from sync.providers.fs import FSProvider
 from sync.providers.sftp import STFPProvider
 from tests.sync.test_sync import SyncTestBase
 
 
+@pytest.mark.sftp
 class FsToSftpSyncTest(SyncTestBase):
     __test__ = True
 

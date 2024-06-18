@@ -1,12 +1,16 @@
 import os
 import uuid
 
+import pytest
+
 from sync.core import Syncer
 from sync.providers.dropbox import DropboxProvider
 from sync.providers.sftp import STFPProvider
 from tests.sync.test_sync import SyncTestBase
 
 
+@pytest.mark.dropbox
+@pytest.mark.sftp
 class DropboxToSftpSyncTest(SyncTestBase):
     __test__ = True
 

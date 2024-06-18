@@ -3,11 +3,14 @@ import os.path
 import unittest
 import uuid
 
+import pytest
+
 from sync.core import ProviderBase
 from sync.providers.sftp import STFPProvider
 from tests.providers.test_provider_base import ProviderTestBase
 
 
+@pytest.mark.sftp
 class SFTPProviderTest(ProviderTestBase):
     __test__ = True
 

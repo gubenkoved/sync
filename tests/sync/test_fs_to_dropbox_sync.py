@@ -3,12 +3,15 @@ import shutil
 import tempfile
 import uuid
 
+import pytest
+
 from sync.core import Syncer
 from sync.providers.dropbox import DropboxProvider
 from sync.providers.fs import FSProvider
 from tests.sync.test_sync import SyncTestBase
 
 
+@pytest.mark.dropbox
 class FsToDropboxSyncTest(SyncTestBase):
     __test__ = True
 
