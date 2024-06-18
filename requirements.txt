@@ -18,7 +18,7 @@ coloredlogs==15.0.1
     # via -r requirements.in
 cryptography==42.0.8
     # via paramiko
-dropbox==11.36.2
+dropbox==12.0.2
     # via -r requirements.in
 humanfriendly==10.0
     # via coloredlogs
@@ -38,7 +38,7 @@ six==1.16.0
     # via
     #   dropbox
     #   stone
-stone==3.3.6
+stone==3.3.1
     # via dropbox
 urllib3==2.2.2
     # via requests
