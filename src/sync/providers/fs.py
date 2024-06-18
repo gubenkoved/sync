@@ -4,11 +4,8 @@ import shutil
 import tempfile
 from typing import BinaryIO, List
 
-from sync.core import (
-    SyncError,
-)
 from sync.hashing import (
-    hash_stream, hash_dict, HashType,
+    hash_dict, HashType,
     sha256_stream, dropbox_hash_stream,
 )
 from sync.provider import (

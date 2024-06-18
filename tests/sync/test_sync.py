@@ -194,7 +194,6 @@ class SyncTestBase(TestCase):
 
     def test_limited_depth(self):
         src_provider = self.syncer.src_provider
-        dst_provider = self.syncer.dst_provider
 
         with random_bytes_stream() as stream:
             src_provider.write('file1', stream)
@@ -221,7 +220,6 @@ class SyncTestBase(TestCase):
 
     def test_move_multiple_files_with_same_hash(self):
         src_provider = self.syncer.src_provider
-        dst_provider = self.syncer.dst_provider
 
         with bytes_as_stream(b'data') as stream:
             src_provider.write('foo/file1', stream)
@@ -251,7 +249,6 @@ class SyncTestBase(TestCase):
 
     def test_move_multiple_files_with_filename_changes(self):
         src_provider = self.syncer.src_provider
-        dst_provider = self.syncer.dst_provider
 
         with bytes_as_stream(b'data') as stream:
             src_provider.write('foo/file-is-named-like-this', stream)

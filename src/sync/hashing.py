@@ -49,4 +49,3 @@ def dropbox_hash_stream(stream: BinaryIO) -> str:
         hash_buffer.seek(0)
         result_hash = sha256_stream(hash_buffer)
         return result_hash
-

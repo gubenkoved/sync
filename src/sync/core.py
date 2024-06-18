@@ -265,7 +265,8 @@ class Syncer:
         # some combinations are not possible w/o corrupted state like
         # ADDED/REMOVED combination means that we saw the file on destination, but
         # why it is ADDED on source then? It means we did not download it
-        action_matrix: Dict[Tuple[DiffType | None, DiffType | None], Callable[[DiffType | None, DiffType | None], SyncAction]] = {
+        DiffProducerType = Callable[[DiffType | None, DiffType | None], SyncAction]
+        action_matrix: Dict[Tuple[DiffType | None, DiffType | None], DiffProducerType] = {
             (None, AddedDiffType): lambda src, dst: DownloadSyncAction(dst.path),
             (None, RemovedDiffType): lambda src, dst: RemoveOnSourceSyncAction(dst.path),
             (None, ChangedDiffType): lambda src, dst: DownloadSyncAction(dst.path),
@@ -327,7 +328,7 @@ class Syncer:
             if sync_action_fn is None:
                 raise SyncError(
                     'undecidable for "%s", source diff %s, destination diff %s' % (
-                    path, src_diff_type, dst_diff_type))
+                        path, src_diff_type, dst_diff_type))
 
             actions[path] = sync_action_fn(src_diff, dst_diff)
 

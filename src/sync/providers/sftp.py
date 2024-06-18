@@ -91,7 +91,7 @@ class STFPProvider(ProviderBase):
             if stderr_string:
                 LOGGER.error('STDERR: %s', stderr_string)
             raise ProviderError(
-                'Command "%s" failed with exit code %s' %(command, exit_code))
+                'Command "%s" failed with exit code %s' % (command, exit_code))
 
         return stdout_string, stderr_string
 
