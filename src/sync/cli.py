@@ -20,13 +20,13 @@ LOGGER = logging.getLogger('cli')
 def main(source_provider: ProviderBase,
          destination_provider: ProviderBase,
          dry_run: bool,
-         filter_glob: Optional[str],
+         filter: Optional[str],
          depth: int | None,
          threads: int):
     syncer = Syncer(
         source_provider,
         destination_provider,
-        filter_glob=filter_glob,
+        filter=filter,
         depth=depth,
         threads=threads,
     )
@@ -138,7 +138,13 @@ SFTP - SFTP (POSIX hosts only)
     parser.add_argument(
         '--threads', type=int, required=False, default=4)
     parser.add_argument(
-        '-f', '--filter-glob', type=str, default=None, required=False)
+        '-f', '--filter', type=str, default=None, required=False,
+        help="""
+Comma-separated list of glob file patterns to use as a filter against full path;
+Examples:
+    "foo/*" matches all the items inside foo directory;
+    "!.spam*" matches all the items which do not start with .spam;
+""")
 
     args = parser.parse_args()
 
@@ -159,7 +165,7 @@ SFTP - SFTP (POSIX hosts only)
             source_provider,
             destination_provider,
             dry_run=args.dry_run,
-            filter_glob=args.filter_glob,
+            filter=args.filter,
             depth=args.depth,
             threads=args.threads,
         )

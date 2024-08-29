@@ -115,23 +115,59 @@ def filter_state(state: StorageState, is_match: Callable[[str], bool]):
     })
 
 
-def make_regex_matcher(pattern: str) -> Callable[[str], bool]:
-    regex = re.compile(pattern, re.IGNORECASE)
+# TODO: consider actually going back to single regex as more explicit and
+#  even powerful option
+def make_filter(filter_expr: str) -> Callable[[str], bool]:
+    """
+    Given filter expression (comma or semicolon separated globs) returns a
+    function that allows to figure out if a given path matches the filter or not.
+    """
 
-    def matcher(path: str):
-        return bool(regex.match(path))
+    def make_single_matcher(atomic_expr: str):
+        atomic_expr = atomic_expr.strip()
+        is_negative = False
 
-    return matcher
+        if atomic_expr[0] == '!':
+            is_negative = True
+            atomic_expr = atomic_expr[1:]
 
+        regex_pattern = fnmatch.translate(atomic_expr)
+        regex = re.compile(regex_pattern, re.IGNORECASE)
 
-def make_glob_matcher(glob_pattern: str) -> Callable[[str], bool]:
-    regex_pattern = fnmatch.translate(glob_pattern)
-    regex = re.compile(regex_pattern, re.IGNORECASE)
+        LOGGER.debug(
+            'translated glob "%s" into "%s" regex',
+            atomic_expr, regex_pattern)
 
-    def matcher(path: str):
-        return bool(regex.match(path))
+        def matcher(path: str):
+            return bool(regex.match(path))
 
-    return matcher
+        return matcher, is_negative
+
+    matchers = [
+        make_single_matcher(expr) for expr
+        in filter_expr.replace(';', ',').split(',')
+    ]
+
+    def result_matcher(path: str):
+        # if the first matcher is positive, we do not match anything by default
+        # however, if first is negative, then it is logical to assume that
+        # everything is matched
+        first_matcher_negative = matchers[0][1]
+        result = first_matcher_negative
+
+        for matcher, is_negative in matchers:
+            is_match = matcher(path)
+
+            if is_match:
+                if not is_negative:
+                    result = True
+                else:  # is_negative
+                    # stop at first negative match
+                    return False
+
+        return result
+
+    return result_matcher
 
 
 class Syncer:
@@ -139,13 +175,13 @@ class Syncer:
                  src_provider: ProviderBase,
                  dst_provider: ProviderBase,
                  state_root_dir: str = '.state',
-                 filter_glob: Optional[str] = None,
+                 filter: Optional[str] = None,
                  depth: int | None = None,
                  threads: int | None = None):
         self.src_provider: ProviderBase = src_provider
         self.dst_provider: ProviderBase = dst_provider
         self.state_root_dir: str = os.path.abspath(os.path.expanduser(state_root_dir))
-        self.filter_glob: str | None = filter_glob
+        self.filter: str | None = filter
         self.depth: int | None = depth
         self.threads: int | None = threads
 
@@ -163,7 +199,7 @@ class Syncer:
         pair_handle = hash_dict({
             'src': src_handle,
             'dst': dst_handle,
-            'filter_glob': self.filter_glob,
+            'filter_glob': self.filter,
             'depth': self.depth,
         })
         return pair_handle
@@ -231,7 +267,7 @@ class Syncer:
             'syncing %s <---> %s%s',
             self.src_provider.get_label(),
             self.dst_provider.get_label(),
-            '; filter: %s' % self.filter_glob if self.filter_glob else '',
+            '; filter: %s' % self.filter if self.filter else '',
         )
 
         pair_state = self.load_state()
@@ -249,8 +285,8 @@ class Syncer:
         src_state = filter_state(src_state, not_ignored_matcher)
         dst_state = filter_state(dst_state, not_ignored_matcher)
 
-        if self.filter_glob:
-            filter_matcher = make_glob_matcher(self.filter_glob)
+        if self.filter:
+            filter_matcher = make_filter(self.filter)
             src_state = filter_state(src_state, filter_matcher)
             dst_state = filter_state(dst_state, filter_matcher)
 
