@@ -333,11 +333,12 @@ class Syncer:
                 k for k, v in normalized_keys_counter.items() if v > 1]
 
             if case_conflicting_keys:
+                LOGGER.error('conflicting keys: %s', case_conflicting_keys)
                 raise SyncError(
-                    'Found multiple keys which are same after normalized'
-                    'case, can not sync!'
+                    'Found multiple keys which are same after normalized '
+                    'case, can not sync! '
                     'Working in case-insensitive mode because one or two '
-                    'providers in sync pair are case-insensitive')
+                    'providers in sync pair are case-insensitive.')
 
             return {self.__normalize_case(k, is_case_sensitive): v for k, v in dictionary.items()}
 
