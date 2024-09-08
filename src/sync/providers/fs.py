@@ -4,6 +4,10 @@ import shutil
 import tempfile
 from typing import BinaryIO, List
 
+from sync.cache import (
+    CacheBase,
+    InMemoryCache,
+)
 from sync.hashing import (
     hash_dict, HashType,
     sha256_stream, dropbox_hash_stream,
@@ -35,9 +39,10 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     BUFFER_SIZE = 4096
     SUPPORTED_HASH_TYPES = [HashType.SHA256, HashType.DROPBOX_SHA256]
 
-    def __init__(self, root_dir: str):
+    def __init__(self, root_dir: str, cache: CacheBase = None):
         LOGGER.debug('init FS provider with root at "%s"', root_dir)
         self.root_dir = os.path.abspath(os.path.expanduser(root_dir))
+        self.cache = cache or InMemoryCache()
 
         # it is not really possible to determine if file system case-sensitive
         # using os.name for instance as both Linux and MacOS will report "posix"
@@ -183,25 +188,35 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     def supported_hash_types(self) -> List[HashType]:
         return self.SUPPORTED_HASH_TYPES
 
-    # TODO: add caching here based on (path, modification time) to avoid
-    #  rehashing on each run
     def compute_hash(self, path: str, hash_type: HashType) -> str:
         assert hash_type in self.SUPPORTED_HASH_TYPES
 
-        LOGGER.debug(
-            'compute %s hash for "%s"', hash_type.value, path)
         abs_path = self._abs_path(path)
-
-        try:
-            with open(abs_path, 'rb') as f:
-                if hash_type == HashType.SHA256:
-                    return sha256_stream(f)
-                elif hash_type == HashType.DROPBOX_SHA256:
-                    return dropbox_hash_stream(f)
-                else:
-                    raise NotImplementedError
-        except FileNotFoundError:
+        if not os.path.exists(abs_path):
             raise FileNotFoundProviderError(f'File not found: {path}')
 
+        modification_time = os.path.getmtime(abs_path)
+
+        cache_key = '%s__%s__%s' % (hash_type, path, modification_time)
+        cached_value = self.cache.get(cache_key)
+
+        if cached_value is None:
+            LOGGER.debug(
+                'compute %s hash for "%s"', hash_type.value, path)
+
+            with open(abs_path, 'rb') as f:
+                if hash_type == HashType.SHA256:
+                    hash_value = sha256_stream(f)
+                elif hash_type == HashType.DROPBOX_SHA256:
+                    hash_value = dropbox_hash_stream(f)
+                else:
+                    raise NotImplementedError
+
+            self.cache.set(cache_key, hash_value)
+        else:
+            hash_value = cached_value
+
+        return hash_value
+
     def clone(self) -> 'ProviderBase':
-        return FSProvider(self.root_dir)
+        return FSProvider(self.root_dir, self.cache)

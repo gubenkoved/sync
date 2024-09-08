@@ -17,18 +17,22 @@ from sync.providers.sftp import STFPProvider
 LOGGER = logging.getLogger('cli')
 
 
-def main(source_provider: ProviderBase,
-         destination_provider: ProviderBase,
-         dry_run: bool,
-         filter: Optional[str],
-         depth: int | None,
-         threads: int):
+def main(
+        source_provider: ProviderBase,
+        destination_provider: ProviderBase,
+        dry_run: bool,
+        filter: Optional[str],
+        depth: int | None,
+        threads: int,
+        state_dir: str
+):
     syncer = Syncer(
         source_provider,
         destination_provider,
         filter=filter,
         depth=depth,
         threads=threads,
+        state_root_dir=state_dir,
     )
     syncer.sync(dry_run=dry_run)
 
@@ -145,6 +149,8 @@ Examples:
     "foo/*" matches all the items inside foo directory;
     "!.spam*" matches all the items which do not start with .spam;
 """)
+    parser.add_argument('--state-dir', type=str, default='.state',
+                        help='Location of the state files.')
 
     args = parser.parse_args()
 
@@ -168,6 +174,7 @@ Examples:
             filter=args.filter,
             depth=args.depth,
             threads=args.threads,
+            state_dir=args.state_dir,
         )
     except Exception as err:
         LOGGER.fatal('error: %s', err, exc_info=True)
