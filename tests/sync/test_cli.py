@@ -16,7 +16,7 @@ class CliTests(TestCase):
             interpreter_path,
             '-m',
             'sync.cli',
-       ] + args
+        ] + args
 
         print('RUNNING: %s' % args)
 
