@@ -51,9 +51,23 @@ class InMemoryCacheWithStorage(InMemoryCache):
         with open(self.storage_path, 'wb') as f:
             pickle.dump(self.data, f)
 
+    def try_save(self):
+        try:
+            self.save()
+        except Exception as exc:
+            LOGGER.warning(
+                'unable to save cache to "%s" due to "%s"', self.storage_path, exc)
+
     def load(self):
         LOGGER.debug('loading cache from "%s"', self.storage_path)
         with open(self.storage_path, 'rb') as f:
             pickled_data = pickle.load(f)
             assert isinstance(pickled_data, dict)
             self.data = pickled_data
+
+    def try_load(self):
+        try:
+            self.load()
+        except Exception as exc:
+            LOGGER.warning(
+                'unable to load cache from "%s" due to "%s"', self.storage_path, exc)

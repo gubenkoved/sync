@@ -1,13 +1,15 @@
 #! /usr/bin/env python
 
 import argparse
-from argparse import RawTextHelpFormatter
 import logging
+import os.path
 import sys
+from argparse import RawTextHelpFormatter
 from typing import List, Optional
 
 import coloredlogs
 
+from sync.cache import InMemoryCacheWithStorage
 from sync.core import Syncer
 from sync.provider import ProviderBase
 from sync.providers.dropbox import DropboxProvider
@@ -15,6 +17,8 @@ from sync.providers.fs import FSProvider
 from sync.providers.sftp import STFPProvider
 
 LOGGER = logging.getLogger('cli')
+
+CACHES: List[InMemoryCacheWithStorage] = []
 
 
 def main(
@@ -34,7 +38,12 @@ def main(
         threads=threads,
         state_root_dir=state_dir,
     )
-    syncer.sync(dry_run=dry_run)
+    try:
+        syncer.sync(dry_run=dry_run)
+    finally:
+        # flush caches to disk
+        for cache in CACHES:
+            cache.try_save()
 
 
 def parse_args(args: List[str]):
@@ -56,9 +65,19 @@ def init_provider(args: List[str]):
         return provider_args.pop(param, None)
 
     if provider_type == 'FS':
+        cache_dir = get('cache_dir', required=False)
+        cache_dir = cache_dir or '.cache'
+
         provider = FSProvider(
             root_dir=get('root'),
         )
+        cache_path = os.path.join(cache_dir, provider.get_handle())
+        # TODO: is there less clumsy way to pass cache? Should I make "get_handle"
+        #  a static method, so that instance is not required?
+        cache = InMemoryCacheWithStorage(cache_path)
+        provider.cache = cache
+        cache.try_load()
+        CACHES.append(cache)
     elif provider_type == 'D':
         account_id = get('id')
         access_token = get('access_token', required=False)
