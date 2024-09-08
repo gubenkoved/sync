@@ -55,16 +55,18 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
             'root_dir': self.root_dir,
         })
 
-    def __determine_if_case_sensitive(self):
+    @staticmethod
+    def __determine_if_case_sensitive():
         with tempfile.NamedTemporaryFile(suffix='case-test') as tmp_file:
             return not os.path.exists(tmp_file.name.upper())
 
     def is_case_sensitive(self) -> bool:
         return self.__is_case_sensitive
 
-    def _file_state(self, abs_path: str) -> FileState:
+    def _file_state(self, rel_path: str) -> FileState:
+        abs_path = self._abs_path(rel_path)
         return FileState(
-            content_hash=self._file_sha256(abs_path),
+            content_hash=self.compute_hash(rel_path, HashType.SHA256),
             hash_type=HashType.SHA256,
             revision=str(os.path.getmtime(abs_path)),
         )
@@ -80,10 +82,9 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
 
             for entry in os.scandir(dir_path):
                 if entry.is_file():
-                    abs_path = entry.path
-                    rel_path = os.path.relpath(abs_path, self.root_dir)
+                    rel_path = os.path.relpath(entry.path, self.root_dir)
                     rel_path = unixify_path(rel_path)
-                    files[rel_path] = self._file_state(abs_path)
+                    files[rel_path] = self._file_state(rel_path)
                 elif entry.is_dir():
                     walk(entry.path, level + 1)
 
@@ -101,17 +102,10 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         return abs_path
 
     def get_file_state(self, path: str):
-        abs_path = self._abs_path(path)
         try:
-            return self._file_state(abs_path)
+            return self._file_state(path)
         except FileNotFoundError:
             raise FileNotFoundProviderError(f'File not found: {path}')
-
-    def _file_sha256(self, path):
-        LOGGER.debug('compute hash for "%s"', path)
-        abs_path = self._abs_path(path)
-        with open(abs_path, 'rb') as f:
-            return sha256_stream(f)
 
     def read(self, path: str) -> BinaryIO:
         abs_path = self._abs_path(path)
@@ -146,8 +140,7 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
 
     def update(self, path: str, content: BinaryIO, revision: str) -> None:
         # not bullet-proof, but still allows to limit concurrency issues
-        abs_path = self._abs_path(path)
-        current_state = self._file_state(abs_path)
+        current_state = self._file_state(path)
 
         if current_state.revision != revision:
             raise ConflictError(
@@ -193,6 +186,8 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     def compute_hash(self, path: str, hash_type: HashType) -> str:
         assert hash_type in self.SUPPORTED_HASH_TYPES
 
+        LOGGER.debug(
+            'compute %s hash for "%s"', hash_type.value, path)
         abs_path = self._abs_path(path)
 
         try:
