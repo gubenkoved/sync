@@ -47,7 +47,9 @@ class InMemoryCacheWithStorage(InMemoryCache):
         self.storage_path = storage_path
 
     def save(self):
-        LOGGER.debug('saving cache into "%s"', self.storage_path)
+        LOGGER.debug(
+            'saving cache into "%s" (entry count: %d)',
+            self.storage_path, len(self.data))
         with open(self.storage_path, 'wb') as f:
             pickle.dump(self.data, f)
 
@@ -64,6 +66,7 @@ class InMemoryCacheWithStorage(InMemoryCache):
             pickled_data = pickle.load(f)
             assert isinstance(pickled_data, dict)
             self.data = pickled_data
+            LOGGER.debug('loaded %d entries', len(self.data))
 
     def try_load(self):
         try:

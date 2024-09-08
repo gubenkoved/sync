@@ -52,8 +52,7 @@ class CliTests(TestCase):
             'FS',
             'root=%s' % target_dir,
             '--log-level',
-            # TODO: what happens when I pass DEBUG here?
-            'INFO',
+            'DEBUG',
         ])
 
         self.assertTrue(os.path.exists(os.path.join(target_dir, 'foo')))
