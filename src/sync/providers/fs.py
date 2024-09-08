@@ -183,6 +183,8 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     def supported_hash_types(self) -> List[HashType]:
         return self.SUPPORTED_HASH_TYPES
 
+    # TODO: add caching here based on (path, modification time) to avoid
+    #  rehashing on each run
     def compute_hash(self, path: str, hash_type: HashType) -> str:
         assert hash_type in self.SUPPORTED_HASH_TYPES
 
