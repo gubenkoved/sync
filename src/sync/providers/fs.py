@@ -212,6 +212,8 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
                 else:
                     raise NotImplementedError
 
+            # TODO: avoid clutter of other hashes for the same file via cleaning
+            #  somehow
             self.cache.set(cache_key, hash_value)
         else:
             hash_value = cached_value

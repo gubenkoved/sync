@@ -68,6 +68,10 @@ def init_provider(args: List[str]):
         cache_dir = get('cache_dir', required=False)
         cache_dir = cache_dir or '.cache'
 
+        if not os.path.exists(cache_dir):
+            LOGGER.info('creating cache dir for FS provider at "%s"...', cache_dir)
+            os.makedirs(cache_dir)
+
         provider = FSProvider(
             root_dir=get('root'),
         )
