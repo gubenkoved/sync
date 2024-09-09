@@ -194,10 +194,10 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
 
         modification_time = os.path.getmtime(abs_path)
 
-        cache_key = '%s__%s__%s' % (hash_type, path, modification_time)
+        cache_key = '%s__%s' % (hash_type, path)
         cached_value = self.cache.get(cache_key)
 
-        if cached_value is CACHE_MISS:
+        if cached_value is CACHE_MISS or cached_value[0] != modification_time:
             LOGGER.debug(
                 'compute %s hash for "%s"', hash_type.value, path)
 
@@ -209,11 +209,9 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
                 else:
                     raise NotImplementedError
 
-            # TODO: avoid clutter of other hashes for the same file via cleaning
-            #  somehow
-            self.cache.set(cache_key, hash_value)
+            self.cache.set(cache_key, (modification_time, hash_value))
         else:
-            hash_value = cached_value
+            _, hash_value = cached_value
 
         return hash_value
 
