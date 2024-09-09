@@ -1,7 +1,7 @@
 import unittest
 import tempfile
 
-from sync.cache import InMemoryCacheWithStorage, CACHE_MISS
+from sync.cache import InMemoryCacheWithStorage, CACHE_MISS, CacheCorruptedError
 
 
 class CacheTest(unittest.TestCase):
@@ -41,3 +41,49 @@ class CacheTest(unittest.TestCase):
             self.cache.load()
 
             self.assertIs(CACHE_MISS, self.cache.get('foo'))
+
+    def test_clear(self):
+        self.cache.set('foo', 'bar')
+
+        self.cache.clear()
+
+        self.assertIs(CACHE_MISS, self.cache.get('foo'))
+
+    def test_rewrite(self):
+        self.cache.set('foo', 'bar')
+        self.cache.set('foo', 'baz')
+
+        self.assertEqual('baz', self.cache.get('foo'))
+
+    def test_load_corrupted(self):
+        with open(self.cache_path, 'w') as f:
+            f.write('corrupted')
+
+        self.assertRaises(
+            CacheCorruptedError,
+            self.cache.load
+        )
+
+        self.assertIs(CACHE_MISS, self.cache.get('foo'))
+
+        self.cache.set('foo', 'bar')
+        self.cache.save()
+        self.cache.load()
+
+        self.assertEqual('bar', self.cache.get('foo'))
+
+    def test_load_restores_cache_state(self):
+        self.cache.set('foo', 'bar')
+        self.cache.set('spam', 'eggs')
+        self.cache.save()
+
+        self.cache.set('foo', 'baz')
+        self.cache.delete('spam')
+
+        self.assertEqual('baz', self.cache.get('foo'))
+        self.assertIs(CACHE_MISS, self.cache.get('spam'))
+
+        self.cache.load()
+
+        self.assertEqual('bar', self.cache.get('foo'))
+        self.assertEqual('eggs', self.cache.get('spam'))

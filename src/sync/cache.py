@@ -39,6 +39,14 @@ class CacheBase:
         pass
 
 
+class CacheError(Exception):
+    pass
+
+
+class CacheCorruptedError(CacheError):
+    pass
+
+
 class InMemoryCache(CacheBase):
     def __init__(self):
         self.data = {}
@@ -77,11 +85,15 @@ class InMemoryCacheWithStorage(InMemoryCache):
 
     def load(self):
         LOGGER.debug('loading cache from "%s"', self.storage_path)
-        with open(self.storage_path, 'rb') as f:
-            pickled_data = pickle.load(f)
-            assert isinstance(pickled_data, dict)
-            self.data = pickled_data
-            LOGGER.debug('loaded %d entries', len(self.data))
+        try:
+            with open(self.storage_path, 'rb') as f:
+                pickled_data = pickle.load(f)
+                assert isinstance(pickled_data, dict)
+                self.data = pickled_data
+                LOGGER.debug('loaded %d entries', len(self.data))
+        except Exception as exc:
+            raise CacheCorruptedError(
+                f'cache file "{self.storage_path}" is corrupted') from exc
 
     def try_load(self):
         try:
