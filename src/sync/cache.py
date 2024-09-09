@@ -3,7 +3,12 @@ import logging
 import pickle
 
 LOGGER = logging.getLogger(__name__)
-CACHE_MISS = object()
+
+class CacheMissSentinel:
+    def __repr__(self):
+        return '<CACHE MISS>'
+
+CACHE_MISS = CacheMissSentinel()
 
 PrimitiveType = (
         str | int | float |
@@ -16,7 +21,7 @@ PrimitiveType = (
 
 class CacheBase:
     @abc.abstractmethod
-    def get(self, key: str) -> PrimitiveType | type[CACHE_MISS]:
+    def get(self, key: str) -> PrimitiveType | CacheMissSentinel:
         pass
 
     @abc.abstractmethod
@@ -36,7 +41,7 @@ class InMemoryCache(CacheBase):
     def __init__(self):
         self.data = {}
 
-    def get(self, key: str) -> PrimitiveType | type[CACHE_MISS]:
+    def get(self, key: str) -> PrimitiveType | CacheMissSentinel:
         return self.data.get(key, CACHE_MISS)
 
     def set(self, key: str, value: PrimitiveType) -> None:
