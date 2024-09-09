@@ -42,6 +42,7 @@ def main(
         syncer.sync(dry_run=dry_run)
     finally:
         # flush caches to disk
+        LOGGER.debug('flushing caches...')
         for cache in CACHES:
             cache.try_save()
 
