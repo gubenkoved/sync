@@ -4,9 +4,11 @@ import pickle
 
 LOGGER = logging.getLogger(__name__)
 
+
 class CacheMissSentinel:
     def __repr__(self):
         return '<CACHE MISS>'
+
 
 CACHE_MISS = CacheMissSentinel()
 
