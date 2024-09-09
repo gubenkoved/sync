@@ -4,9 +4,9 @@ import tempfile
 import unittest
 import unittest.mock as mock
 
+from sync.cache import InMemoryCache
 from sync.core import ProviderBase
 from sync.providers.fs import FSProvider
-from sync.cache import InMemoryCache
 from tests.common import bytes_as_stream
 from tests.providers.test_provider_base import ProviderTestBase
 

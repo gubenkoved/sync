@@ -198,6 +198,11 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         cached_value = self.cache.get(cache_key)
 
         if cached_value is CACHE_MISS or cached_value[0] != modification_time:
+            if cached_value is not CACHE_MISS:
+                LOGGER.debug(
+                    'found previous cache value for modification time %s',
+                    cached_value[0])
+
             LOGGER.debug(
                 'compute %s hash for "%s"', hash_type.value, path)
 
