@@ -63,4 +63,5 @@ jobs:
       run: |
         echo ${SFTP_PRIVATE_KEY_BASE64} | base64 -d > ${SFTP_KEY_PATH}
         chmod 600 ${SFTP_KEY_PATH}
-        pytest -n auto -m 'not slow'
+        pytest -n auto -m 'not slow and not dropbox'
+        pytest -m 'not slow and dropbox'
