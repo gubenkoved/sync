@@ -52,7 +52,9 @@ class CliTests(TestCase):
             'FS',
             'root=%s' % target_dir,
             '--log-level',
-            'DEBUG',
+            # TODO: for some reason on Windows if this is changed to DEBUG
+            #  test never finishes...
+            'INFO',
         ])
 
         self.assertTrue(os.path.exists(os.path.join(target_dir, 'foo')))

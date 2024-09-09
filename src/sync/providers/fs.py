@@ -7,6 +7,7 @@ from typing import BinaryIO, List
 from sync.cache import (
     CacheBase,
     InMemoryCache,
+    CACHE_MISS,
 )
 from sync.hashing import (
     hash_dict, HashType,
@@ -196,7 +197,7 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         cache_key = '%s__%s__%s' % (hash_type, path, modification_time)
         cached_value = self.cache.get(cache_key)
 
-        if cached_value is None:
+        if cached_value is CACHE_MISS:
             LOGGER.debug(
                 'compute %s hash for "%s"', hash_type.value, path)
 

@@ -1,18 +1,26 @@
 import abc
-import pickle
 import logging
-
+import pickle
 
 LOGGER = logging.getLogger(__name__)
+CACHE_MISS = object()
+
+PrimitiveType = (
+        str | int | float |
+        dict[str, 'PrimitiveType'] |
+        list['PrimitiveType'] |
+        tuple['PrimitiveType', ...] |
+        None
+)
 
 
 class CacheBase:
     @abc.abstractmethod
-    def get(self, key: str) -> str | None:
+    def get(self, key: str) -> PrimitiveType | type[CACHE_MISS]:
         pass
 
     @abc.abstractmethod
-    def set(self, key: str, value: str) -> None:
+    def set(self, key: str, value: PrimitiveType) -> None:
         pass
 
     @abc.abstractmethod
@@ -28,10 +36,10 @@ class InMemoryCache(CacheBase):
     def __init__(self):
         self.data = {}
 
-    def get(self, key: str) -> str | None:
-        return self.data.get(key)
+    def get(self, key: str) -> PrimitiveType | type[CACHE_MISS]:
+        return self.data.get(key, CACHE_MISS)
 
-    def set(self, key: str, value: str) -> None:
+    def set(self, key: str, value: PrimitiveType) -> None:
         self.data[key] = value
 
     def delete(self, key: str) -> None:
