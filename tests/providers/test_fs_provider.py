@@ -1,17 +1,15 @@
+import logging
 import os
 import shutil
 import tempfile
 import unittest
 import unittest.mock as mock
-import logging
-from importlib.metadata import pass_none
 
 from sync.cache import InMemoryCache
 from sync.core import ProviderBase
 from sync.providers.fs import FSProvider
 from tests.common import bytes_as_stream
 from tests.providers.test_provider_base import ProviderTestBase
-
 
 LOGGER = logging.getLogger(__name__)
 
