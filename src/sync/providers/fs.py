@@ -31,10 +31,6 @@ from sync.state import (
 LOGGER = logging.getLogger(__name__)
 
 
-# TODO: provider should be able to have cache store
-#  (e.g. to avoid recomputing hashes when there seem to be no reason to do so, like
-#  both size and modification time is unchanged), this probably can be united with
-#  the other provider state
 class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     BUFFER_SIZE = 4096
     SUPPORTED_HASH_TYPES = [HashType.SHA256, HashType.DROPBOX_SHA256]
