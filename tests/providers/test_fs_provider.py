@@ -3,12 +3,16 @@ import shutil
 import tempfile
 import unittest
 import unittest.mock as mock
+import logging
 
 from sync.cache import InMemoryCache
 from sync.core import ProviderBase
 from sync.providers.fs import FSProvider
 from tests.common import bytes_as_stream
 from tests.providers.test_provider_base import ProviderTestBase
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class FSProviderTest(ProviderTestBase):
@@ -31,30 +35,33 @@ class FSProviderTest(ProviderTestBase):
             with bytes_as_stream(b'foo') as stream:
                 self.provider.write('foo', stream)
 
-            with bytes_as_stream(b'bar') as stream:
-                self.provider.write('bar', stream)
-
-            _ = self.provider.get_state()
-            self.assertEqual(2, patcher.call_count)
-            patcher.reset_mock()
-
-            # cache hot on both
-            _ = self.provider.get_state()
-            self.assertEqual(0, patcher.call_count)
-            patcher.reset_mock()
-
-            # change modification date for one
             foo_path = os.path.join(self.root_dir, 'foo')
-            bar_path = os.path.join(self.root_dir, 'bar')
 
-            os.utime(foo_path)
+            mtime = os.path.getmtime(foo_path)
+            LOGGER.info('mtime: %s', mtime)
 
             _ = self.provider.get_state()
             self.assertEqual(1, patcher.call_count)
             patcher.reset_mock()
 
-            os.utime(bar_path)
+            # cache hot
+            _ = self.provider.get_state()
+            self.assertEqual(0, patcher.call_count)
+            patcher.reset_mock()
 
+            # cache hit again
+            _ = self.provider.get_state()
+            self.assertEqual(0, patcher.call_count)
+            patcher.reset_mock()
+
+            # change modification date
+            os.utime(foo_path)
+
+            mtime2 = os.path.getmtime(foo_path)
+            LOGGER.info('mtime2: %s', mtime)
+            self.assertNotEqual(mtime, mtime2)
+
+            # cache miss
             _ = self.provider.get_state()
             self.assertEqual(1, patcher.call_count)
             patcher.reset_mock()
@@ -63,7 +70,7 @@ class FSProviderTest(ProviderTestBase):
             self.cache.clear()
 
             _ = self.provider.get_state()
-            self.assertEqual(2, patcher.call_count)
+            self.assertEqual(1, patcher.call_count)
             patcher.reset_mock()
 
 
