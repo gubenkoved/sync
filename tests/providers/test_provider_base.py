@@ -233,7 +233,6 @@ class ProviderTestBase(unittest.TestCase):
         state_before = provider.get_state()
         self.assertCountEqual(['FOO'], state_before.files.keys())
 
-
     def test_safe_update_if_supported(self):
         provider = self.get_provider()
 
