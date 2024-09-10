@@ -219,6 +219,21 @@ class ProviderTestBase(unittest.TestCase):
 
         self.assert_storage_state_equal(state_before, state_after)
 
+    def test_case_only_change_movement(self):
+        provider = self.get_provider()
+
+        with bytes_as_stream(b'foo') as stream:
+            provider.write('foo', stream)
+
+        state_before = provider.get_state()
+        self.assertCountEqual(['foo'], state_before.files.keys())
+
+        provider.move('foo', 'FOO')
+
+        state_before = provider.get_state()
+        self.assertCountEqual(['FOO'], state_before.files.keys())
+
+
     def test_safe_update_if_supported(self):
         provider = self.get_provider()
 
