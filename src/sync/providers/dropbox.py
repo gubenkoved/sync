@@ -218,9 +218,13 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
                 dbx.files_move_v2(src_path, dst_path)
                 break
             except ApiError as err:
-                if attempt <= 3 and 'too_many_write_operations' in str(err):
-                    LOGGER.warning('Got "too_many_write_operations" error, attempting retry...')
-                    time.sleep(1.0)
+                if attempt <= 4 and 'too_many_write_operations' in str(err):
+                    back_off_time = 1.0 * (2 ** (attempt - 1))
+                    LOGGER.warning(
+                        'Got "too_many_write_operations" error, '
+                        'attempting retry in %.1f seconds (attempt %d)...',
+                        back_off_time, attempt)
+                    time.sleep(back_off_time)
                     continue
 
                 # reraise other errors or if attempts exhausted
