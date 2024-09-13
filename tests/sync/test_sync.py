@@ -8,7 +8,8 @@ from sync.core import (
     UploadSyncAction, DownloadSyncAction,
     RemoveOnSourceSyncAction, RemoveOnDestinationSyncAction,
     MoveOnSourceSyncAction, MoveOnDestinationSyncAction,
-    ResolveConflictSyncAction,
+    ResolveConflictSyncAction, NoopSyncAction,
+    SyncError,
     Syncer,
 )
 from tests.common import bytes_as_stream, stream_to_bytes, random_bytes_stream
@@ -301,6 +302,43 @@ class SyncTestBase(TestCase):
         self.do_sync([
             MoveOnSourceSyncAction('foo/Data', 'foo/DATA'),
         ])
+
+    def test_move_same_way_on_both_sides_is_noop(self):
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
+
+        with bytes_as_stream(b'data') as stream:
+            src_provider.write('foo/data', stream)
+
+        self.do_sync([
+            UploadSyncAction('foo/data'),
+        ])
+
+        src_provider.move('foo/data', 'bar/data')
+        dst_provider.move('foo/data', 'bar/data')
+
+        self.do_sync([
+            NoopSyncAction('foo/data'),
+        ])
+
+    def test_move_on_both_sides_to_different_locations_leads_to_error(self):
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
+
+        with bytes_as_stream(b'data') as stream:
+            src_provider.write('foo/data', stream)
+
+        self.do_sync([
+            UploadSyncAction('foo/data'),
+        ])
+
+        src_provider.move('foo/data', 'bar/data')
+        dst_provider.move('foo/data', 'baz/data')
+
+        self.assertRaises(
+            SyncError,
+            self.syncer.sync
+        )
 
     # TODO: write this tricky test where folder names are changing for case
     #  insensitive providers... there could also be multiple moves which use

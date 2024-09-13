@@ -105,6 +105,14 @@ class NoopSyncAction(SyncAction):
     TYPE = 'NOOP'
 
 
+class RaiseErrorSyncAction(SyncAction):
+    TYPE = 'RAISE_ERROR'
+
+    def __init__(self, path, message):
+        super().__init__(path)
+        self.message = message
+
+
 class SyncError(Exception):
     pass
 
@@ -262,6 +270,21 @@ class Syncer:
 
         return src_hash == dst_hash
 
+    def __resolve_mutual_movement(self, src: MovedDiffType, dst: MovedDiffType) -> SyncAction:
+        assert src.path == dst.path
+
+        if src.new_path == dst.new_path:
+            return NoopSyncAction(src.path)
+
+        message = (
+            'File moved on both source and destination in different '
+            'locations; new location on source: %s, on destination: %s;' % (
+                src.new_path, dst.new_path
+            )
+        )
+
+        return RaiseErrorSyncAction(src.path, message)
+
     def sync(self, dry_run: bool = False) -> List[SyncAction]:
         LOGGER.info(
             'syncing %s <---> %s%s',
@@ -316,7 +339,7 @@ class Syncer:
             # movements handling
             (None, MovedDiffType): lambda src, dst: MoveOnSourceSyncAction(dst.path, dst.new_path),
             (MovedDiffType, None): lambda src, dst: MoveOnDestinationSyncAction(src.path, src.new_path),
-            # TODO: handle movement on both sides by either noop or RaiseErrorAction
+            (MovedDiffType, MovedDiffType): self.__resolve_mutual_movement,
         }
 
         is_case_sensitive = (
@@ -448,6 +471,11 @@ class Syncer:
             elif isinstance(action, NoopSyncAction):
                 # no action is needed
                 pass
+            elif isinstance(action, RaiseErrorSyncAction):
+                raise SyncError(
+                    'error occurred for path "%s": %s' % (
+                        action.path, action.message)
+                )
             else:
                 raise NotImplementedError('action %s' % action)
 
