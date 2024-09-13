@@ -7,7 +7,7 @@ import pytest
 
 from sync.core import Syncer
 from sync.providers.fs import FSProvider
-from tests.common import create_sftp_provider
+from sync.providers.sftp import STFPProvider
 from tests.sync.test_sync import SyncTestBase
 
 
@@ -23,7 +23,7 @@ class FsToSftpSyncTest(SyncTestBase):
         self.addCleanup(lambda: shutil.rmtree(src_dir))
 
         root_dir = '/tmp/sync-tests/%s' % uuid.uuid4()
-        dst_provider = create_sftp_provider(
+        dst_provider = STFPProvider(
             root_dir=root_dir,
             host=os.environ['SFTP_HOST'],
             port=int(os.environ['SFTP_PORT']),

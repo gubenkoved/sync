@@ -6,7 +6,7 @@ import uuid
 import pytest
 
 from sync.core import ProviderBase
-from tests.common import create_sftp_provider
+from sync.providers.sftp import STFPProvider
 from tests.providers.test_provider_base import ProviderTestBase
 
 
@@ -17,7 +17,7 @@ class SFTPProviderTest(ProviderTestBase):
     def setUp(self):
         super().setUp()
         root_dir = '/tmp/sync-tests/%s' % uuid.uuid4()
-        self.provider = create_sftp_provider(
+        self.provider = STFPProvider(
             root_dir=root_dir,
             host=os.environ['SFTP_HOST'],
             port=int(os.environ.get('SFTP_PORT', '22')),
