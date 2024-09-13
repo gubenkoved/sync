@@ -437,12 +437,12 @@ class Syncer:
             src_provider, dst_provider = get_providers()
 
             if isinstance(action, UploadSyncAction):
-                stream = src_provider.read(action.path)
-                write(dst_provider, dst_state, action.path, stream)
+                with src_provider.read(action.path) as stream:
+                    write(dst_provider, dst_state, action.path, stream)
                 dst_state.files[action.path] = dst_provider.get_file_state(action.path)
             elif isinstance(action, DownloadSyncAction):
-                stream = dst_provider.read(action.path)
-                write(src_provider, src_state, action.path, stream)
+                with dst_provider.read(action.path) as stream:
+                    write(src_provider, src_state, action.path, stream)
                 src_state.files[action.path] = src_provider.get_file_state(action.path)
             elif isinstance(action, RemoveOnDestinationSyncAction):
                 dst_provider.remove(action.path)
@@ -473,11 +473,10 @@ class Syncer:
                 pass
             elif isinstance(action, RaiseErrorSyncAction):
                 raise SyncError(
-                    'error occurred for path "%s": %s' % (
-                        action.path, action.message)
+                    f'error occurred for path "{action.path}": {action.message}'
                 )
             else:
-                raise NotImplementedError('action %s' % action)
+                raise NotImplementedError(f'action {action}')
 
         sync_errors = []
 
