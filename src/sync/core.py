@@ -316,6 +316,7 @@ class Syncer:
             # movements handling
             (None, MovedDiffType): lambda src, dst: MoveOnSourceSyncAction(dst.path, dst.new_path),
             (MovedDiffType, None): lambda src, dst: MoveOnDestinationSyncAction(src.path, src.new_path),
+            # TODO: handle movement on both sides by either noop or RaiseErrorAction
         }
 
         is_case_sensitive = (
@@ -349,12 +350,14 @@ class Syncer:
         changed_files = set(src_changes) | set(dst_changes)
 
         actions: Dict[str, SyncAction] = {}
+        paths_with_errors: List[str] = []
+
         for path in changed_files:
             src_diff = src_changes.get(path, None)
             dst_diff = dst_changes.get(path, None)
 
             LOGGER.debug(
-                'handling path %s, source diff: %s, destination diff: %s',
+                'handling path %s, source diff: %r, destination diff: %r',
                 path, src_diff, dst_diff)
 
             src_diff_type = type(src_diff) if src_diff else None
@@ -363,11 +366,18 @@ class Syncer:
             sync_action_fn = action_matrix.get((src_diff_type, dst_diff_type), None)
 
             if sync_action_fn is None:
-                raise SyncError(
-                    'undecidable for "%s", source diff %s, destination diff %s' % (
-                        path, src_diff_type, dst_diff_type))
+                LOGGER.error(
+                    'undecidable for "%s", source diff %r, destination diff %r',
+                    path, src_diff, dst_diff)
+                paths_with_errors.append(path)
+                continue
 
             actions[path] = sync_action_fn(src_diff, dst_diff)
+
+        if paths_with_errors:
+            raise SyncError(
+                'Error(s) occurred for %d paths identifying sync '
+                'action (see logs)' % len(paths_with_errors))
 
         if dry_run:
             LOGGER.warning('dry run mode!')
