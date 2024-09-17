@@ -15,9 +15,9 @@ from sync.diff import (
     DiffType, AddedDiffType, ChangedDiffType, RemovedDiffType, MovedDiffType,
     StorageStateDiff,
 )
-from sync.hashing import hash_dict, hash_stream
+from sync.hashing import hash_dict, hash_stream, HashType
 from sync.provider import ProviderBase, SafeUpdateSupportMixin
-from sync.state import StorageState, SyncPairState
+from sync.state import StorageState, SyncPairState, FileState
 
 LOGGER = logging.getLogger(__name__)
 
@@ -224,12 +224,16 @@ class Syncer:
             return state.save(f)
 
     def compare(self, path: str) -> bool:
-        return self.__compare(path, self.src_provider, self.dst_provider)
+        src_state = self.src_provider.get_file_state(path)
+        dst_state = self.dst_provider.get_file_state(path)
+        return self.__compare(
+            path, src_state, dst_state, self.src_provider, self.dst_provider)
 
-    # TODO: reuse hash from the state if available to avoid roundtrip for each
-    #  file
     @staticmethod
-    def __compare(path: str, src_provider: ProviderBase, dst_provider: ProviderBase) -> bool:
+    def __compare(
+            path: str,
+            src_state: FileState, dst_state: FileState,
+            src_provider: ProviderBase, dst_provider: ProviderBase) -> bool:
         """
         Compares files at given relative path between source and destination
         providers. Note that direct comparison of content hash is not correct
@@ -249,9 +253,29 @@ class Syncer:
             LOGGER.debug(
                 'hashes supported by both providers: %s',
                 ', '.join(str(t) for t in shared_hash_types))
-            hash_type = list(shared_hash_types)[0]
-            src_hash = src_provider.compute_hash(path, hash_type)
-            dst_hash = dst_provider.compute_hash(path, hash_type)
+
+            # if there are multiple shared hash types try to pick one which is
+            # already calculated for both or at least for one provider
+            def hash_type_preference(hash_type: HashType):
+                preference = 0
+                if hash_type == src_state.hash_type:
+                    preference += 1
+                if hash_type == dst_state.hash_type:
+                    preference += 1
+                return preference
+
+            chosen_hash_type: HashType = sorted(
+                shared_hash_types, key=hash_type_preference, reverse=True)[0]
+
+            # try to get hash from the already computed file state when
+            # possible to avoid provider invocation
+            def compute_hash(file_state: FileState, provider: ProviderBase):
+                if file_state.hash_type == chosen_hash_type:
+                    return file_state.content_hash
+                return provider.compute_hash(path, chosen_hash_type)
+
+            src_hash = compute_hash(src_state, src_provider)
+            dst_hash = compute_hash(dst_state, dst_provider)
         else:  # download and compute locally
             LOGGER.debug('no shared hashes, download both and compare locally')
             src_hash = hash_stream(src_provider.read(path))
@@ -270,10 +294,9 @@ class Syncer:
             return NoopSyncAction(src.path)
 
         message = (
-            'File moved on both source and destination in different '
-            'locations; new location on source: %s, on destination: %s;' % (
-                src.new_path, dst.new_path
-            )
+            f'File moved on both source and destination in different '
+            f'locations; new location on source: {src.new_path}, '
+            f'on destination: {dst.new_path};'
         )
 
         return RaiseErrorSyncAction(src.path, message)
@@ -442,15 +465,20 @@ class Syncer:
                 src_provider.remove(action.path)
                 src_state.files.pop(action.path)
             elif isinstance(action, ResolveConflictSyncAction):
-                are_equal = self.__compare(action.path, src_provider, dst_provider)
+                src_file_state = src_state.files.get(action.path)
+                dst_file_state = dst_state.files.get(action.path)
+
+                are_equal = self.__compare(
+                    action.path, src_file_state, dst_file_state, src_provider, dst_provider)
+
                 if not are_equal:
                     raise SyncError(
-                        'Unable to resolve conflict for "%s" -- files are '
-                        'different!' % action.path)
-                else:
-                    LOGGER.debug(
-                        'resolved conflict for "%s" as files identical',
-                        action.path)
+                        f'Unable to resolve conflict for "{action.path}" -- files are '
+                        'different!')
+
+                LOGGER.debug(
+                    'resolved conflict for "%s" as files identical',
+                    action.path)
             elif isinstance(action, MoveOnSourceSyncAction):
                 src_provider.move(action.path, action.new_path)
                 src_state.files[action.new_path] = src_state.files[action.path]

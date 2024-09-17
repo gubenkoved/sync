@@ -193,6 +193,28 @@ class SyncTestBase(TestCase):
             ResolveConflictSyncAction('foo'),
         ])
 
+    def test_simulate_loss_of_state_file(self):
+        src_provider = self.syncer.src_provider
+
+        paths = []
+        for file_index in range(10):
+            data = (f'data-{file_index}').encode('utf-8')
+            with bytes_as_stream(data) as stream:
+                path = f'file_{file_index}'
+                src_provider.write(path, stream)
+                paths.append(path)
+
+        self.do_sync()
+
+        # now drop the state file
+        os.remove(self.syncer.get_state_file_path())
+
+        # run sync again
+        self.do_sync([
+            ResolveConflictSyncAction(path)
+            for path in paths
+        ])
+
     def test_limited_depth(self):
         src_provider = self.syncer.src_provider
 
