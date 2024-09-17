@@ -22,16 +22,6 @@ from sync.state import StorageState, SyncPairState
 LOGGER = logging.getLogger(__name__)
 
 
-IGNORE_FILENAMES = set(x.lower() for x in [
-    '.DS_Store',
-])
-
-
-def should_ignore(path: str):
-    head, filename = os.path.split(path)
-    return filename.lower() in IGNORE_FILENAMES
-
-
 class SyncAction(abc.ABC):
     TYPE = None
 
@@ -200,6 +190,7 @@ class Syncer:
         if self.depth is not None and self.depth <= 0:
             raise ValueError('Invalid depth')
 
+    # TODO: consider ability to reuse sync state when filter changes
     def get_state_handle(self):
         src_handle = self.src_provider.get_handle()
         dst_handle = self.dst_provider.get_handle()
@@ -235,6 +226,8 @@ class Syncer:
     def compare(self, path: str) -> bool:
         return self.__compare(path, self.src_provider, self.dst_provider)
 
+    # TODO: reuse hash from the state if available to avoid roundtrip for each
+    #  file
     @staticmethod
     def __compare(path: str, src_provider: ProviderBase, dst_provider: ProviderBase) -> bool:
         """
@@ -300,13 +293,6 @@ class Syncer:
 
         src_state = self.src_provider.get_state(self.depth)
         dst_state = self.dst_provider.get_state(self.depth)
-
-        # get rid of ignored files
-        def not_ignored_matcher(path):
-            return not should_ignore(path)
-
-        src_state = filter_state(src_state, not_ignored_matcher)
-        dst_state = filter_state(dst_state, not_ignored_matcher)
 
         if self.filter:
             filter_matcher = make_filter(self.filter)

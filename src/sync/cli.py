@@ -169,6 +169,13 @@ SFTP - SFTP (POSIX hosts only)
         '-f', '--filter', type=str, default=None, required=False,
         help="""
 Comma-separated list of glob file patterns to use as a filter against full path;
+
+When first action is exclusion, then the default action used when no rules matched
+    is to include file (e.g. "!foo/*" means to exclude all files except foo dir);
+
+When first action is inclusion, then the default action used when no rules matched
+    is to exclude file (e.g. "foo/*" means to include only foo dir);
+
 Examples:
     "foo/*" matches all the items inside foo directory;
     "!.spam*" matches all the items which do not start with .spam;
