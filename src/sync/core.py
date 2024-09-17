@@ -336,6 +336,11 @@ class Syncer:
             (ChangedDiffType, ChangedDiffType): lambda src, dst: ResolveConflictSyncAction(src.path),
             (RemovedDiffType, RemovedDiffType): lambda src, dst: NoopSyncAction(src.path),
 
+            (ChangedDiffType, RemovedDiffType): lambda src, dst: RaiseErrorSyncAction(
+                src.path, 'File changed on source, but removed on destination'),
+            (RemovedDiffType, ChangedDiffType): lambda src, dst: RaiseErrorSyncAction(
+                src.path, 'File removed on source, but changed on destination'),
+
             # movements handling
             (None, MovedDiffType): lambda src, dst: MoveOnSourceSyncAction(dst.path, dst.new_path),
             (MovedDiffType, None): lambda src, dst: MoveOnDestinationSyncAction(src.path, src.new_path),

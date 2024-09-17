@@ -340,6 +340,52 @@ class SyncTestBase(TestCase):
             self.syncer.sync
         )
 
+    def test_changed_on_source_removed_on_destination(self):
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
+
+        with bytes_as_stream(b'data') as stream:
+            src_provider.write('foo/data', stream)
+
+        self.do_sync([
+            UploadSyncAction('foo/data'),
+        ])
+
+        # change on source
+        with bytes_as_stream(b'data-2') as stream:
+            src_provider.write('foo/data', stream)
+
+        # remove on destination
+        dst_provider.remove('foo/data')
+
+        self.assertRaises(
+            SyncError,
+            self.syncer.sync
+        )
+
+    def test_changed_on_destination_removed_on_source(self):
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
+
+        with bytes_as_stream(b'data') as stream:
+            src_provider.write('foo/data', stream)
+
+        self.do_sync([
+            UploadSyncAction('foo/data'),
+        ])
+
+        # change on destination
+        with bytes_as_stream(b'data-2') as stream:
+            dst_provider.write('foo/data', stream)
+
+        # remove on source
+        src_provider.remove('foo/data')
+
+        self.assertRaises(
+            SyncError,
+            self.syncer.sync
+        )
+
     # TODO: write this tricky test where folder names are changing for case
     #  insensitive providers... there could also be multiple moves which use
     #  different folder casing for the same directory... what do we expect
