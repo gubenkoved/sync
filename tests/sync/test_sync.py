@@ -11,7 +11,9 @@ from sync.core import (
     ResolveConflictSyncAction, NoopSyncAction,
     SyncError,
     Syncer,
+    make_filter, filter_state,
 )
+from sync.provider import ProviderBase
 from tests.common import bytes_as_stream, stream_to_bytes, random_bytes_stream
 
 
@@ -35,6 +37,12 @@ class SyncTestBase(TestCase):
         src_state = self.syncer.src_provider.get_state()
         dst_state = self.syncer.dst_provider.get_state()
 
+        # consider the filter if defined
+        if self.syncer.filter:
+            filter_matcher = make_filter(self.syncer.filter)
+            src_state = filter_state(src_state, filter_matcher)
+            dst_state = filter_state(dst_state, filter_matcher)
+
         # ensure same file lists
         # note that we can not directly compare different providers StorageState
         # as the content hash is abstract and can mean different things
@@ -42,14 +50,20 @@ class SyncTestBase(TestCase):
 
         for path in src_state.files:
             self.assertTrue(
-                self.syncer.compare(path), 'files are different by path %s' % path)
+                self.syncer.compare(path), f'files are different by path {path}')
 
     def do_sync(self, expected_sync_actions=None, ensure_same_state=True):
         sync_actions = self.syncer.sync()
+
         if expected_sync_actions is not None:
             self.assertCountEqual(expected_sync_actions, sync_actions)
+
         if ensure_same_state:
             self.ensure_same_state()
+
+    def create_file(self, provider: ProviderBase, path: str):
+        with random_bytes_stream(1024) as stream:
+            provider.write(path, stream)
 
     def test_sync_new_files(self):
         src_provider = self.syncer.src_provider
@@ -414,6 +428,35 @@ class SyncTestBase(TestCase):
     #  for these cases after all?
     # def test_case_only_moves_with_folder_name_changes(self):
     #     raise NotImplementedError
+
+    def test_sync_with_filter(self):
+        src_provider = self.syncer.src_provider
+
+        self.create_file(src_provider, 'file.foo')
+        self.create_file(src_provider, 'foo/bar')
+        self.create_file(src_provider, 'foo/foo')
+        self.create_file(src_provider, 'file.bar')
+        self.create_file(src_provider, 'bar/foo')
+        self.create_file(src_provider, 'bar/bar')
+
+        self.syncer.filter = '!*foo'
+
+        self.do_sync([
+            UploadSyncAction('foo/bar'),
+            UploadSyncAction('file.bar'),
+            UploadSyncAction('bar/bar'),
+        ])
+
+        # so far when we change filter state file is no longer reusable since
+        # providers handle changes
+
+        self.syncer.filter = 'foo*;*.foo'
+
+        self.do_sync([
+            ResolveConflictSyncAction('foo/bar'),
+            UploadSyncAction('foo/foo'),
+            UploadSyncAction('file.foo'),
+        ])
 
 
 if __name__ == '__main__':
