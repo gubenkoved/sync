@@ -60,9 +60,12 @@ class ResolveConflictSyncAction(SyncAction):
 class MoveOnSourceSyncAction(SyncAction):
     TYPE = 'MOVE_SRC'
 
-    def __init__(self, path, new_path):
+    def __init__(self, path: str, new_path: str):
         super().__init__(path)
         self.new_path = new_path
+
+        if path == new_path:
+            raise ValueError('old and new paths must be different')
 
     def __repr__(self):
         return '%s("%s", "%s")' % (
@@ -77,9 +80,12 @@ class MoveOnSourceSyncAction(SyncAction):
 class MoveOnDestinationSyncAction(SyncAction):
     TYPE = 'MOVE_DST'
 
-    def __init__(self, path, new_path):
+    def __init__(self, path: str, new_path: str):
         super().__init__(path)
         self.new_path = new_path
+
+        if path == new_path:
+            raise ValueError('old and new paths must be different')
 
     def __repr__(self):
         return '%s("%s", "%s")' % (

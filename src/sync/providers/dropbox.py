@@ -18,7 +18,9 @@ from sync.provider import (
     ConflictError,
 )
 from sync.providers.common import (
-    path_join, relative_path,
+    path_join,
+    relative_path,
+    normalize_unicode,
 )
 from sync.state import FileState, StorageState
 
@@ -232,6 +234,12 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
 
     def move(self, source_path: str, destination_path: str) -> None:
         dbx = self._get_dropbox()
+
+        if normalize_unicode(source_path) == normalize_unicode(destination_path):
+            LOGGER.warning(
+                'suppressing movement for "%s" since source and destination '
+                'are the same after unicode normalization to NFC form', source_path)
+            return
 
         source_full_path = self._get_full_path(source_path)
         destination_full_path = self._get_full_path(destination_path)

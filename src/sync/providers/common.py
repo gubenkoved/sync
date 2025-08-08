@@ -1,4 +1,5 @@
 from typing import Tuple
+import unicodedata
 
 
 SEP = '/'
@@ -37,3 +38,12 @@ def path_split(path: str) -> Tuple[str, str]:
         raise ValueError('Invalid path to split!')
 
     return head, tail
+
+
+def normalize_unicode(string: str) -> str:
+    """
+    Normalize unicode string to NFC form.
+    """
+    # Normal form C (NFC) first applies a canonical decomposition,
+    # then composes pre-combined characters again
+    return unicodedata.normalize('NFC', string)

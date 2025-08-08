@@ -23,6 +23,7 @@ from sync.provider import (
 )
 from sync.providers.common import (
     unixify_path,
+    normalize_unicode,
 )
 from sync.state import (
     StorageState,
@@ -162,6 +163,12 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         source_abs_path = self._abs_path(source_path)
         destination_abs_path = self._abs_path(destination_path)
         is_case_only_change = source_path.lower() == destination_path.lower()
+
+        if normalize_unicode(source_path) == normalize_unicode(destination_path):
+            LOGGER.warning(
+                'suppressing movement for "%s" since source and destination '
+                'are the same after unicode normalization to NFC form', source_path)
+            return
 
         if self.is_case_sensitive() or not is_case_only_change:
             if os.path.exists(destination_abs_path):
