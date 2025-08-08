@@ -1,4 +1,5 @@
 import abc
+import logging
 import time
 import unittest
 
@@ -6,20 +7,18 @@ import pytest
 
 from sync.hashing import HashType
 from sync.provider import (
-    ProviderBase,
-    FileNotFoundProviderError,
     FileAlreadyExistsError,
-    SafeUpdateSupportMixin,
+    FileNotFoundProviderError,
+    ProviderBase,
     ProviderError,
+    SafeUpdateSupportMixin,
 )
 from sync.state import StorageState
 from tests.common import (
     bytes_as_stream,
-    stream_to_bytes,
     random_bytes_stream,
+    stream_to_bytes,
 )
-
-import logging
 
 LOGGER = logging.getLogger(__name__)
 

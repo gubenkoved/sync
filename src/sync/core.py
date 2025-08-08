@@ -1,5 +1,6 @@
 import abc
 import collections
+from collections import Counter
 import concurrent.futures
 import fnmatch
 import logging
@@ -8,16 +9,26 @@ import re
 import threading
 import time
 import typing
-from collections import Counter
-from typing import Dict, Optional, Callable, BinaryIO, Tuple, List
+from typing import (
+    BinaryIO,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+)
 
 from sync.diff import (
-    DiffType, AddedDiffType, ChangedDiffType, RemovedDiffType, MovedDiffType,
+    AddedDiffType,
+    ChangedDiffType,
+    DiffType,
+    MovedDiffType,
+    RemovedDiffType,
     StorageStateDiff,
 )
-from sync.hashing import hash_dict, hash_stream, HashType
+from sync.hashing import HashType, hash_dict, hash_stream
 from sync.provider import ProviderBase, SafeUpdateSupportMixin
-from sync.state import StorageState, SyncPairState, FileState
+from sync.state import FileState, StorageState, SyncPairState
 
 LOGGER = logging.getLogger(__name__)
 

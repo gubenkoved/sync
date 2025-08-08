@@ -1,10 +1,10 @@
 #! /usr/bin/env python
 
 import argparse
+from argparse import RawTextHelpFormatter
 import logging
 import os.path
 import sys
-from argparse import RawTextHelpFormatter
 from typing import List, Optional
 
 import coloredlogs

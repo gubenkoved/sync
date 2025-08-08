@@ -1,9 +1,9 @@
-from unittest import TestCase
-import tempfile
-import subprocess
-import os.path
-import sys
 import logging
+import os.path
+import subprocess
+import sys
+import tempfile
+from unittest import TestCase
 
 LOGGER = logging.getLogger(__name__)
 

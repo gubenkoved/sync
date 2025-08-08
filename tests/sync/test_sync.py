@@ -5,16 +5,21 @@ from unittest import TestCase
 import pytest
 
 from sync.core import (
-    UploadSyncAction, DownloadSyncAction,
-    RemoveOnSourceSyncAction, RemoveOnDestinationSyncAction,
-    MoveOnSourceSyncAction, MoveOnDestinationSyncAction,
-    ResolveConflictSyncAction, NoopSyncAction,
-    SyncError,
+    DownloadSyncAction,
+    MoveOnDestinationSyncAction,
+    MoveOnSourceSyncAction,
+    NoopSyncAction,
+    RemoveOnDestinationSyncAction,
+    RemoveOnSourceSyncAction,
+    ResolveConflictSyncAction,
     Syncer,
-    make_filter, filter_state,
+    SyncError,
+    UploadSyncAction,
+    filter_state,
+    make_filter,
 )
 from sync.provider import ProviderBase
-from tests.common import bytes_as_stream, stream_to_bytes, random_bytes_stream
+from tests.common import bytes_as_stream, random_bytes_stream, stream_to_bytes
 
 
 class SyncTestBase(TestCase):

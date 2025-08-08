@@ -5,29 +5,31 @@ import tempfile
 from typing import BinaryIO, List
 
 from sync.cache import (
+    CACHE_MISS,
     CacheBase,
     InMemoryCache,
-    CACHE_MISS,
 )
 from sync.hashing import (
-    hash_dict, HashType,
-    sha256_stream, dropbox_hash_stream,
+    HashType,
+    dropbox_hash_stream,
+    hash_dict,
+    sha256_stream,
 )
 from sync.provider import (
+    ConflictError,
+    FileAlreadyExistsError,
+    FileNotFoundProviderError,
     ProviderBase,
     ProviderError,
-    FileNotFoundProviderError,
-    FileAlreadyExistsError,
     SafeUpdateSupportMixin,
-    ConflictError,
 )
 from sync.providers.common import (
-    unixify_path,
     normalize_unicode,
+    unixify_path,
 )
 from sync.state import (
-    StorageState,
     FileState,
+    StorageState,
 )
 
 LOGGER = logging.getLogger(__name__)

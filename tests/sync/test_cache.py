@@ -1,7 +1,7 @@
-import unittest
 import tempfile
+import unittest
 
-from sync.cache import InMemoryCacheWithStorage, CACHE_MISS, CacheCorruptedError
+from sync.cache import CACHE_MISS, CacheCorruptedError, InMemoryCacheWithStorage
 
 
 class CacheTest(unittest.TestCase):

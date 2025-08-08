@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import BinaryIO, List
 
 from sync.hashing import HashType
-from sync.state import StorageState, FileState
+from sync.state import FileState, StorageState
 
 
 class ProviderError(Exception):

@@ -2,25 +2,32 @@ import io
 import logging
 import os.path
 import shlex
-import uuid
 from stat import S_ISDIR, S_ISREG
-from typing import BinaryIO, Optional, Tuple, List
+from typing import (
+    BinaryIO,
+    List,
+    Optional,
+    Tuple,
+)
+import uuid
 
 import paramiko
 
-from sync.hashing import hash_dict, HashType
+from sync.hashing import HashType, hash_dict
 from sync.provider import (
+    FileAlreadyExistsError,
+    FileNotFoundProviderError,
     ProviderBase,
     ProviderError,
-    FileNotFoundProviderError,
-    FileAlreadyExistsError,
 )
 from sync.providers.common import (
-    path_join, relative_path, path_split,
+    path_join,
+    path_split,
+    relative_path,
 )
 from sync.state import (
-    StorageState,
     FileState,
+    StorageState,
 )
 
 LOGGER = logging.getLogger(__name__)

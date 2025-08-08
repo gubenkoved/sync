@@ -1,7 +1,6 @@
 from typing import Tuple
 import unicodedata
 
-
 SEP = '/'
 
 

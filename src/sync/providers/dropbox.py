@@ -1,26 +1,26 @@
 import io
 import logging
 import time
-from typing import BinaryIO, Optional, List
+from typing import BinaryIO, List, Optional
 import uuid
 
 import dropbox
 from dropbox.exceptions import ApiError
 from dropbox.files import FileMetadata, FolderMetadata, WriteMode
 
-from sync.hashing import hash_dict, HashType
+from sync.hashing import HashType, hash_dict
 from sync.provider import (
+    ConflictError,
+    FileAlreadyExistsError,
+    FileNotFoundProviderError,
     ProviderBase,
     ProviderError,
-    FileNotFoundProviderError,
-    FileAlreadyExistsError,
     SafeUpdateSupportMixin,
-    ConflictError,
 )
 from sync.providers.common import (
+    normalize_unicode,
     path_join,
     relative_path,
-    normalize_unicode,
 )
 from sync.state import FileState, StorageState
 
