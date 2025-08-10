@@ -67,5 +67,5 @@ jobs:
         pytest -n auto -m 'not slow and not sftp and not dropbox' --reruns $RERUN_COUNT --reruns-delay $RERUN_DELAY --log-cli-level DEBUG
         # sftp tests, limit concurrency so that server is okay
         pytest -n 4 -m 'not slow and sftp' --reruns $RERUN_COUNT --reruns-delay $RERUN_DELAY --log-cli-level DEBUG
-        # dropbox tests (no concurrency, so that API rate limits are not hit)
-        pytest -m 'not slow and dropbox' --reruns $RERUN_COUNT --reruns-delay $RERUN_DELAY --log-cli-level DEBUG
+        # dropbox tests (limited concurrency, so that API rate limits are not hit)
+        pytest -n 2 -m 'not slow and dropbox' --reruns $RERUN_COUNT --reruns-delay $RERUN_DELAY --log-cli-level DEBUG
