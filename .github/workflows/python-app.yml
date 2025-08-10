@@ -35,11 +35,9 @@ jobs:
         # install package in editable mode and use current lock file 
         # for build reproducibility
         pip install -e . -c requirements.txt
-    - name: Lint with flake8
+    - name: Lint the code
       run: |
-        # stop the build if there are Python syntax errors or undefined names
-        # flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 . --count --show-source --statistics
+        black --check .
     - name: Build wheel
       run: |
         python -m build
