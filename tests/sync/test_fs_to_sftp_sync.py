@@ -22,13 +22,13 @@ class FsToSftpSyncTest(SyncTestBase):
         src_provider = FSProvider(root_dir=src_dir)
         self.addCleanup(lambda: shutil.rmtree(src_dir))
 
-        root_dir = '/tmp/sync-tests/%s' % uuid.uuid4()
+        root_dir = "/tmp/sync-tests/%s" % uuid.uuid4()
         dst_provider = STFPProvider(
             root_dir=root_dir,
-            host=os.environ['SFTP_HOST'],
-            port=int(os.environ['SFTP_PORT']),
-            username=os.environ['SFTP_USERNAME'],
-            key_path=os.environ['SFTP_KEY_PATH'],
+            host=os.environ["SFTP_HOST"],
+            port=int(os.environ["SFTP_PORT"]),
+            username=os.environ["SFTP_USERNAME"],
+            key_path=os.environ["SFTP_KEY_PATH"],
         )
 
         self._syncer = Syncer(

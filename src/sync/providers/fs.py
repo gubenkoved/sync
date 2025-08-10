@@ -39,20 +39,21 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         # but MacOS will not be case-sensitive by default
         self.__is_case_sensitive = self.__determine_if_case_sensitive()
 
-        LOGGER.debug(
-            'is case sensitive file system? %s', self.__is_case_sensitive)
+        LOGGER.debug("is case sensitive file system? %s", self.__is_case_sensitive)
 
     def get_label(self) -> str:
-        return 'FS(%s)' % self.root_dir
+        return "FS(%s)" % self.root_dir
 
     def get_handle(self) -> str:
-        return 'fs-' + hash_dict({
-            'root_dir': self.root_dir,
-        })
+        return "fs-" + hash_dict(
+            {
+                "root_dir": self.root_dir,
+            }
+        )
 
     @staticmethod
     def __determine_if_case_sensitive():
-        with tempfile.NamedTemporaryFile(suffix='case-test') as tmp_file:
+        with tempfile.NamedTemporaryFile(suffix="case-test") as tmp_file:
             return not os.path.exists(tmp_file.name.upper())
 
     def is_case_sensitive(self) -> bool:
@@ -85,7 +86,8 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
                         raise ProviderError(
                             f"There seem to be multiple files using same name, "
                             f"but in different Unicode normalization forms. "
-                            f"This is not supported. File path was \"{rel_path}\"")
+                            f'This is not supported. File path was "{rel_path}"'
+                        )
 
                     files[rel_path] = self._file_state(rel_path)
                 elif entry.is_dir():
@@ -94,7 +96,7 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         self._ensure_dir(self.root_dir)
         walk(self.root_dir, level=1)
 
-        LOGGER.debug('discovered %d files', len(files))
+        LOGGER.debug("discovered %d files", len(files))
         return StorageState(files)
 
     def _abs_path(self, path: str):
@@ -102,26 +104,26 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         abs_path = os.path.abspath(abs_path)
         abs_path = normalize_unicode(abs_path)
         if not abs_path.startswith(self.root_dir):
-            raise ProviderError('path outside of root dir')
+            raise ProviderError("path outside of root dir")
         return abs_path
 
     def get_file_state(self, path: str):
         try:
             return self._file_state(path)
         except FileNotFoundError:
-            raise FileNotFoundProviderError(f'File not found: {path}')
+            raise FileNotFoundProviderError(f"File not found: {path}")
 
     def read(self, path: str) -> BinaryIO:
         abs_path = self._abs_path(path)
         try:
-            return open(abs_path, 'rb')
+            return open(abs_path, "rb")
         except FileNotFoundError:
-            raise FileNotFoundProviderError(f'File not found: {path}')
+            raise FileNotFoundProviderError(f"File not found: {path}")
 
     @staticmethod
     def _ensure_dir(dir_path: str):
         if not os.path.exists(dir_path):
-            LOGGER.debug(f'creating directory {dir_path}...')
+            LOGGER.debug(f"creating directory {dir_path}...")
             # exist_ok allows to handle concurrency induced error that dir
             # is already exists
             os.makedirs(dir_path, exist_ok=True)
@@ -149,7 +151,8 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         if current_state.revision != revision:
             raise ConflictError(
                 f'Can not update "{path}" due to conflict as revision tag does '
-                f'not match current state')
+                f"not match current state"
+            )
 
         self.write(path, content)
 
@@ -158,7 +161,7 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         try:
             os.unlink(abs_path)
         except FileNotFoundError:
-            raise FileNotFoundProviderError(f'File not found: {path}')
+            raise FileNotFoundProviderError(f"File not found: {path}")
 
     def move(self, source_path: str, destination_path: str):
         source_abs_path = self._abs_path(source_path)
@@ -168,17 +171,20 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         if normalize_unicode(source_path) == normalize_unicode(destination_path):
             LOGGER.warning(
                 'suppressing movement for "%s" since source and destination '
-                'are the same after unicode normalization to NFC form', source_path)
+                "are the same after unicode normalization to NFC form",
+                source_path,
+            )
             return
 
         if self.is_case_sensitive() or not is_case_only_change:
             if os.path.exists(destination_abs_path):
-                raise FileAlreadyExistsError(
-                    f'File already exists: {destination_path}')
+                raise FileAlreadyExistsError(f"File already exists: {destination_path}")
         else:
             LOGGER.warning(
                 'case-only change movement requested "%s" -> "%s"',
-                source_path, destination_path)
+                source_path,
+                destination_path,
+            )
 
         # ensure destination directory if missing
         destination_dir, _ = os.path.split(destination_abs_path)
@@ -187,8 +193,7 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
         try:
             shutil.move(source_abs_path, destination_abs_path)
         except FileNotFoundError as err:
-            raise FileNotFoundProviderError(
-                f'File not found: {source_path}') from err
+            raise FileNotFoundProviderError(f"File not found: {source_path}") from err
 
     def supported_hash_types(self) -> List[HashType]:
         return self.SUPPORTED_HASH_TYPES
@@ -198,23 +203,23 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
 
         abs_path = self._abs_path(path)
         if not os.path.exists(abs_path):
-            raise FileNotFoundProviderError(f'File not found: {path}')
+            raise FileNotFoundProviderError(f"File not found: {path}")
 
         modification_time = os.path.getmtime(abs_path)
 
-        cache_key = '%s__%s' % (hash_type, path)
+        cache_key = "%s__%s" % (hash_type, path)
         cached_value = self.cache.get(cache_key)
 
         if cached_value is CACHE_MISS or cached_value[0] != modification_time:
             if cached_value is not CACHE_MISS:
                 LOGGER.debug(
-                    'found previous cache value for modification time %s',
-                    cached_value[0])
+                    "found previous cache value for modification time %s",
+                    cached_value[0],
+                )
 
-            LOGGER.debug(
-                'compute %s hash for "%s"', hash_type.value, path)
+            LOGGER.debug('compute %s hash for "%s"', hash_type.value, path)
 
-            with open(abs_path, 'rb') as f:
+            with open(abs_path, "rb") as f:
                 if hash_type == HashType.SHA256:
                     hash_value = sha256_stream(f)
                 elif hash_type == HashType.DROPBOX_SHA256:
@@ -228,5 +233,5 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
 
         return hash_value
 
-    def clone(self) -> 'ProviderBase':
+    def clone(self) -> "ProviderBase":
         return FSProvider(self.root_dir, self.cache)

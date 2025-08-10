@@ -9,8 +9,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class HashType(StrEnum):
-    DROPBOX_SHA256 = 'DROPBOX_SHA256'
-    SHA256 = 'SHA256'
+    DROPBOX_SHA256 = "DROPBOX_SHA256"
+    SHA256 = "SHA256"
 
 
 def sha256_stream(stream: BinaryIO, buffer_size: int = 1024) -> str:

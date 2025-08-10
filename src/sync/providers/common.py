@@ -1,12 +1,12 @@
 from typing import Tuple
 import unicodedata
 
-SEP = '/'
-UNICODE_NORMAL_FORM = 'NFC'
+SEP = "/"
+UNICODE_NORMAL_FORM = "NFC"
 
 
 def unixify_path(path):
-    return path.replace('\\', SEP)
+    return path.replace("\\", SEP)
 
 
 # TODO: support arbitrary amount of segments
@@ -23,20 +23,20 @@ def relative_path(full_path: str, base_path: str, case_sensitive: bool = False):
         matching_prefix = full_path.lower().startswith(base_path.lower())
 
     if not matching_prefix:
-        raise ValueError('Full path "%s" must start with base path "%s"!' % (
-            full_path, base_path
-        ))
+        raise ValueError(
+            'Full path "%s" must start with base path "%s"!' % (full_path, base_path)
+        )
 
-    result = full_path[len(base_path):]
+    result = full_path[len(base_path) :]
     return result
 
 
 def path_split(path: str) -> Tuple[str, str]:
     idx = path.rfind(SEP)
-    head, tail = path[:idx], path[idx+1:]
+    head, tail = path[:idx], path[idx + 1 :]
 
     if not head or not tail:
-        raise ValueError('Invalid path to split!')
+        raise ValueError("Invalid path to split!")
 
     return head, tail
 

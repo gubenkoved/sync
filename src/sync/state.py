@@ -8,23 +8,26 @@ from sync.hashing import HashType
 #  not case sensitive and we did not use a canonical name when we were
 #  requesting file
 class FileState:
-    def __init__(
-            self, content_hash: str, hash_type: HashType,
-            revision: str = None):
+    def __init__(self, content_hash: str, hash_type: HashType, revision: str = None):
         self.content_hash: str = content_hash
         self.hash_type: HashType = hash_type
         self.revision: str = revision
 
     def __repr__(self):
         return 'FileState(content_hash="%s", hash_type="%s", revision="%s")>' % (
-            self.content_hash, self.hash_type, self.revision)
+            self.content_hash,
+            self.hash_type,
+            self.revision,
+        )
 
     def __eq__(self, other):
         if not isinstance(other, FileState):
             return False
-        return (self.content_hash == other.content_hash and
-                self.hash_type == other.hash_type and
-                self.revision == other.revision)
+        return (
+            self.content_hash == other.content_hash
+            and self.hash_type == other.hash_type
+            and self.revision == other.revision
+        )
 
 
 class StorageState:
@@ -32,7 +35,7 @@ class StorageState:
         self.files: Dict[str, FileState] = files or {}
 
     def __repr__(self):
-        return '<StorageState %s files>' % len(self.files)
+        return "<StorageState %s files>" % len(self.files)
 
     def __eq__(self, other):
         if not isinstance(other, StorageState):
@@ -49,7 +52,7 @@ class SyncPairState:
         pickle.dump(self, f)
 
     @staticmethod
-    def load(f: BinaryIO) -> 'SyncPairState':
+    def load(f: BinaryIO) -> "SyncPairState":
         obj = pickle.load(f)
         assert isinstance(obj, SyncPairState)
         return obj

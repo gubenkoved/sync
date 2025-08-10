@@ -22,13 +22,13 @@ class FsToDropboxSyncTest(SyncTestBase):
         src_provider = FSProvider(root_dir=src_dir)
         self.addCleanup(lambda: shutil.rmtree(src_dir))
 
-        root_dir = '/temp/sync-tests/%s' % uuid.uuid4()
+        root_dir = "/temp/sync-tests/%s" % uuid.uuid4()
         dst_provider = DropboxProvider(
             root_dir=root_dir,
-            account_id='test',
-            token=os.environ['DROPBOX_TOKEN'],
-            app_key=os.environ['DROPBOX_APP_KEY'],
-            app_secret=os.environ['DROPBOX_APP_SECRET'],
+            account_id="test",
+            token=os.environ["DROPBOX_TOKEN"],
+            app_key=os.environ["DROPBOX_APP_KEY"],
+            app_secret=os.environ["DROPBOX_APP_SECRET"],
             is_refresh_token=True,
         )
 

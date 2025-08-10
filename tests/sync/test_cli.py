@@ -14,20 +14,20 @@ class CliTests(TestCase):
 
         args = [
             interpreter_path,
-            '-m',
-            'sync.cli',
+            "-m",
+            "sync.cli",
         ] + args
 
-        print('RUNNING: %s' % args)
+        print("RUNNING: %s" % args)
 
         proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         proc.wait()
 
-        stdout = proc.stdout.read().decode('utf-8')
-        stderr = proc.stderr.read().decode('utf-8')
+        stdout = proc.stdout.read().decode("utf-8")
+        stderr = proc.stderr.read().decode("utf-8")
 
-        print('STDOUT:\n%s' % stdout)
-        print('STDERR:\n%s' % stderr)
+        print("STDOUT:\n%s" % stdout)
+        print("STDERR:\n%s" % stderr)
 
         if expect_success:
             self.assertEqual(0, proc.returncode)
@@ -38,30 +38,32 @@ class CliTests(TestCase):
         source_dir = tempfile.mkdtemp()
         target_dir = tempfile.mkdtemp()
 
-        with open(os.path.join(source_dir, 'foo'), 'w') as f:
-            f.write('foo')
+        with open(os.path.join(source_dir, "foo"), "w") as f:
+            f.write("foo")
 
-        with open(os.path.join(source_dir, 'bar'), 'w') as f:
-            f.write('bar')
+        with open(os.path.join(source_dir, "bar"), "w") as f:
+            f.write("bar")
 
-        self._execute_sync([
-            '--source',
-            'FS',
-            'root=%s' % source_dir,
-            '--destination',
-            'FS',
-            'root=%s' % target_dir,
-            '--log-level',
-            # TODO: for some reason on Windows if this is changed to DEBUG
-            #  test never finishes...
-            'INFO',
-        ])
+        self._execute_sync(
+            [
+                "--source",
+                "FS",
+                "root=%s" % source_dir,
+                "--destination",
+                "FS",
+                "root=%s" % target_dir,
+                "--log-level",
+                # TODO: for some reason on Windows if this is changed to DEBUG
+                #  test never finishes...
+                "INFO",
+            ]
+        )
 
-        self.assertTrue(os.path.exists(os.path.join(target_dir, 'foo')))
-        self.assertTrue(os.path.exists(os.path.join(target_dir, 'bar')))
+        self.assertTrue(os.path.exists(os.path.join(target_dir, "foo")))
+        self.assertTrue(os.path.exists(os.path.join(target_dir, "bar")))
 
-        with open(os.path.join(target_dir, 'foo'), 'r') as f:
-            self.assertEqual('foo', f.read())
+        with open(os.path.join(target_dir, "foo"), "r") as f:
+            self.assertEqual("foo", f.read())
 
-        with open(os.path.join(target_dir, 'bar'), 'r') as f:
-            self.assertEqual('bar', f.read())
+        with open(os.path.join(target_dir, "bar"), "r") as f:
+            self.assertEqual("bar", f.read())

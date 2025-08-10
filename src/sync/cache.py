@@ -7,17 +7,19 @@ LOGGER = logging.getLogger(__name__)
 
 class CacheMissSentinel:
     def __repr__(self):
-        return '<CACHE MISS>'
+        return "<CACHE MISS>"
 
 
 CACHE_MISS = CacheMissSentinel()
 
 PrimitiveType = (
-        str | int | float |
-        dict[str, 'PrimitiveType'] |
-        list['PrimitiveType'] |
-        tuple['PrimitiveType', ...] |
-        None
+    str
+    | int
+    | float
+    | dict[str, "PrimitiveType"]
+    | list["PrimitiveType"]
+    | tuple["PrimitiveType", ...]
+    | None
 )
 
 
@@ -72,8 +74,10 @@ class InMemoryCacheWithStorage(InMemoryCache):
     def save(self):
         LOGGER.debug(
             'saving cache into "%s" (entry count: %d)',
-            self.storage_path, len(self.data))
-        with open(self.storage_path, 'wb') as f:
+            self.storage_path,
+            len(self.data),
+        )
+        with open(self.storage_path, "wb") as f:
             pickle.dump(self.data, f)
 
     def try_save(self):
@@ -81,23 +85,26 @@ class InMemoryCacheWithStorage(InMemoryCache):
             self.save()
         except Exception as exc:
             LOGGER.warning(
-                'unable to save cache to "%s" due to "%s"', self.storage_path, exc)
+                'unable to save cache to "%s" due to "%s"', self.storage_path, exc
+            )
 
     def load(self):
         LOGGER.debug('loading cache from "%s"', self.storage_path)
         try:
-            with open(self.storage_path, 'rb') as f:
+            with open(self.storage_path, "rb") as f:
                 pickled_data = pickle.load(f)
                 assert isinstance(pickled_data, dict)
                 self.data = pickled_data
-                LOGGER.debug('loaded %d entries', len(self.data))
+                LOGGER.debug("loaded %d entries", len(self.data))
         except Exception as exc:
             raise CacheCorruptedError(
-                f'cache file "{self.storage_path}" is corrupted') from exc
+                f'cache file "{self.storage_path}" is corrupted'
+            ) from exc
 
     def try_load(self):
         try:
             self.load()
         except Exception as exc:
             LOGGER.warning(
-                'unable to load cache from "%s" due to "%s"', self.storage_path, exc)
+                'unable to load cache from "%s" due to "%s"', self.storage_path, exc
+            )

@@ -16,19 +16,19 @@ from sync.providers.dropbox import DropboxProvider
 from sync.providers.fs import FSProvider
 from sync.providers.sftp import STFPProvider
 
-LOGGER = logging.getLogger('cli')
+LOGGER = logging.getLogger("cli")
 
 CACHES: List[InMemoryCacheWithStorage] = []
 
 
 def main(
-        source_provider: ProviderBase,
-        destination_provider: ProviderBase,
-        dry_run: bool,
-        filter: Optional[str],
-        depth: int | None,
-        threads: int,
-        state_dir: str
+    source_provider: ProviderBase,
+    destination_provider: ProviderBase,
+    dry_run: bool,
+    filter: Optional[str],
+    depth: int | None,
+    threads: int,
+    state_dir: str,
 ):
     syncer = Syncer(
         source_provider,
@@ -42,7 +42,7 @@ def main(
         syncer.sync(dry_run=dry_run)
     finally:
         # flush caches to disk
-        LOGGER.debug('flushing caches...')
+        LOGGER.debug("flushing caches...")
         for cache in CACHES:
             cache.try_save()
 
@@ -50,7 +50,7 @@ def main(
 def parse_args(args: List[str]):
     result = {}
     for arg in args:
-        k, v = arg.split('=', maxsplit=1)
+        k, v = arg.split("=", maxsplit=1)
         assert k not in result
         result[k] = v
     return result
@@ -62,19 +62,19 @@ def init_provider(args: List[str]):
 
     def get(param: str, required=True) -> Optional[str]:
         if required and param not in provider_args:
-            raise Exception('expected %s for %s provider' % (param, provider_type))
+            raise Exception("expected %s for %s provider" % (param, provider_type))
         return provider_args.pop(param, None)
 
-    if provider_type == 'FS':
-        cache_dir = get('cache_dir', required=False)
-        cache_dir = cache_dir or '.cache'
+    if provider_type == "FS":
+        cache_dir = get("cache_dir", required=False)
+        cache_dir = cache_dir or ".cache"
 
         if not os.path.exists(cache_dir):
             LOGGER.info('creating cache dir for FS provider at "%s"...', cache_dir)
             os.makedirs(cache_dir)
 
         provider = FSProvider(
-            root_dir=get('root'),
+            root_dir=get("root"),
         )
         cache_path = os.path.join(cache_dir, provider.get_handle())
         # TODO: is there less clumsy way to pass cache? Should I make "get_handle"
@@ -83,10 +83,10 @@ def init_provider(args: List[str]):
         provider.cache = cache
         cache.try_load()
         CACHES.append(cache)
-    elif provider_type == 'D':
-        account_id = get('id')
-        access_token = get('access_token', required=False)
-        refresh_token = get('refresh_token', required=False)
+    elif provider_type == "D":
+        account_id = get("id")
+        access_token = get("access_token", required=False)
+        refresh_token = get("refresh_token", required=False)
 
         if access_token:
             dropbox_args = dict(
@@ -95,32 +95,32 @@ def init_provider(args: List[str]):
         elif refresh_token:
             dropbox_args = dict(
                 token=refresh_token,
-                app_key=get('app_key'),
-                app_secret=get('app_secret'),
+                app_key=get("app_key"),
+                app_secret=get("app_secret"),
                 is_refresh_token=True,
             )
         else:
-            raise Exception('unknown token type')
+            raise Exception("unknown token type")
 
         provider = DropboxProvider(
             account_id=account_id,
-            root_dir=get('root'),
+            root_dir=get("root"),
             **dropbox_args,
         )
-    elif provider_type == 'SFTP':
+    elif provider_type == "SFTP":
         provider = STFPProvider(
-            host=get('host'),
-            username=get('user'),
-            root_dir=get('root'),
-            key_path=get('key', required=False),
-            password=get('pass', required=False),
-            port=int(get('port', required=False) or 22),
+            host=get("host"),
+            username=get("user"),
+            root_dir=get("root"),
+            key_path=get("key", required=False),
+            password=get("pass", required=False),
+            port=int(get("port", required=False) or 22),
         )
     else:
         raise Exception('unknown provider: "%s"' % provider_type)
 
     if provider_args:
-        raise Exception('unrecognized parameters: %s' % provider_args.keys())
+        raise Exception("unrecognized parameters: %s" % provider_args.keys())
 
     return provider
 
@@ -150,23 +150,23 @@ SFTP - SFTP (POSIX hosts only)
     key: Optional path to key file
     pass: Optional pass
     port: Optional port number (22 is default)
-""", formatter_class=RawTextHelpFormatter)
+""",
+        formatter_class=RawTextHelpFormatter,
+    )
 
-    parser.add_argument(
-        '--log-level', type=str, required=False, default='info')
+    parser.add_argument("--log-level", type=str, required=False, default="info")
 
+    parser.add_argument("-s", "--source", nargs="+", required=True)
+    parser.add_argument("-d", "--destination", nargs="+", required=True)
+    parser.add_argument("--dry-run", action="store_true", required=False, default=False)
+    parser.add_argument("--depth", type=int, required=False, default=None)
+    parser.add_argument("--threads", type=int, required=False, default=4)
     parser.add_argument(
-        '-s', '--source', nargs='+', required=True)
-    parser.add_argument(
-        '-d', '--destination', nargs='+', required=True)
-    parser.add_argument(
-        '--dry-run', action='store_true', required=False, default=False)
-    parser.add_argument(
-        '--depth', type=int, required=False, default=None)
-    parser.add_argument(
-        '--threads', type=int, required=False, default=4)
-    parser.add_argument(
-        '-f', '--filter', type=str, default=None, required=False,
+        "-f",
+        "--filter",
+        type=str,
+        default=None,
+        required=False,
         help="""
 Comma-separated list of glob file patterns to use as a filter against full path;
 
@@ -179,20 +179,22 @@ When first action is inclusion, then the default action used when no rules match
 Examples:
     "foo/*" matches all the items inside foo directory;
     "!.spam*" matches all the items which do not start with .spam;
-""")
-    parser.add_argument('--state-dir', type=str, default='.state',
-                        help='Location of the state files.')
+""",
+    )
+    parser.add_argument(
+        "--state-dir", type=str, default=".state", help="Location of the state files."
+    )
 
     args = parser.parse_args()
 
     coloredlogs.install(
         level=logging.getLevelName(args.log_level.upper()),
-        fmt='%(asctime)s %(hostname)s %(name)s[%(process)d][%(threadName)s] %(levelname)s %(message)s',
+        fmt="%(asctime)s %(hostname)s %(name)s[%(process)d][%(threadName)s] %(levelname)s %(message)s",
     )
 
     # disable too verbose logging
-    logging.getLogger('dropbox').setLevel(logging.WARNING)
-    logging.getLogger('paramiko').setLevel(logging.WARNING)
+    logging.getLogger("dropbox").setLevel(logging.WARNING)
+    logging.getLogger("paramiko").setLevel(logging.WARNING)
 
     source_provider = init_provider(args.source)
     destination_provider = init_provider(args.destination)
@@ -208,9 +210,9 @@ Examples:
             state_dir=args.state_dir,
         )
     except Exception as err:
-        LOGGER.fatal('error: %s', err, exc_info=True)
+        LOGGER.fatal("error: %s", err, exc_info=True)
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     entrypoint()

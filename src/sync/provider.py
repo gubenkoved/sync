@@ -73,7 +73,7 @@ class ProviderBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def clone(self) -> 'ProviderBase':
+    def clone(self) -> "ProviderBase":
         """Returns a new instance of the provider with the same settings"""
         raise NotImplementedError
 

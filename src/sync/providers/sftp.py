@@ -20,7 +20,12 @@ from sync.provider import (
     ProviderBase,
     ProviderError,
 )
-from sync.providers.common import path_join, path_split, relative_path, normalize_unicode
+from sync.providers.common import (
+    normalize_unicode,
+    path_join,
+    path_split,
+    relative_path,
+)
 from sync.state import FileState, StorageState
 
 LOGGER = logging.getLogger(__name__)
@@ -29,9 +34,15 @@ LOGGER = logging.getLogger(__name__)
 class STFPProvider(ProviderBase):
     SUPPORTED_HASH_TYPES = [HashType.SHA256]
 
-    def __init__(self, host: str, username: str, root_dir: str,
-                 password: Optional[str] = None, key_path: Optional[str] = None,
-                 port: int = 22):
+    def __init__(
+        self,
+        host: str,
+        username: str,
+        root_dir: str,
+        password: Optional[str] = None,
+        key_path: Optional[str] = None,
+        port: int = 22,
+    ):
         """
         Implements SFTP provider with POSIX-compatible (Unix, MacOS)
         target platform only.
@@ -51,8 +62,8 @@ class STFPProvider(ProviderBase):
         self.__is_case_sensitive = self.__determine_if_case_sensitive()
 
         LOGGER.debug(
-            'is remote file system case-sensitive? %s ',
-            self.__is_case_sensitive)
+            "is remote file system case-sensitive? %s ", self.__is_case_sensitive
+        )
 
     def __determine_if_case_sensitive(self):
         ssh_client, _ = self._connect()
@@ -67,42 +78,46 @@ class STFPProvider(ProviderBase):
         stdout, _ = self.__run_ssh_command(check_command)
         stdout = stdout.strip()
 
-        if stdout == 'case-insensitive':
+        if stdout == "case-insensitive":
             return False
-        elif stdout == 'case-sensitive':
+        elif stdout == "case-sensitive":
             return True
         else:
             raise ProviderError(
-                'unexpected output, unable to determine case '
-                'sensitivity: "%s"' % stdout)
+                "unexpected output, unable to determine case "
+                'sensitivity: "%s"' % stdout
+            )
 
     def __run_ssh_command(self, command):
         ssh_client, _ = self._connect()
 
         _, stdout, stderr = ssh_client.exec_command(command)
 
-        stdout_string = stdout.read().decode('utf-8')
-        stderr_string = stderr.read().decode('utf-8')
+        stdout_string = stdout.read().decode("utf-8")
+        stderr_string = stderr.read().decode("utf-8")
 
         exit_code = stdout.channel.recv_exit_status()
         if exit_code != 0:
             if stdout_string:
-                LOGGER.error('STDOUT: %s', stdout_string)
+                LOGGER.error("STDOUT: %s", stdout_string)
             if stderr_string:
-                LOGGER.error('STDERR: %s', stderr_string)
+                LOGGER.error("STDERR: %s", stderr_string)
             raise ProviderError(
-                'Command "%s" failed with exit code %s' % (command, exit_code))
+                'Command "%s" failed with exit code %s' % (command, exit_code)
+            )
 
         return stdout_string, stderr_string
 
     def get_label(self) -> str:
-        return 'SFTP(%s@%s:%s)' % (self.username, self.host, self.root_dir)
+        return "SFTP(%s@%s:%s)" % (self.username, self.host, self.root_dir)
 
     def get_handle(self) -> str:
-        return 'sftp-' + hash_dict({
-            'host': self.host,
-            'root_dir': self.root_dir,
-        })
+        return "sftp-" + hash_dict(
+            {
+                "host": self.host,
+                "root_dir": self.root_dir,
+            }
+        )
 
     def is_case_sensitive(self) -> bool:
         return self.__is_case_sensitive
@@ -118,7 +133,7 @@ class STFPProvider(ProviderBase):
 
     def _connect(self) -> Tuple[paramiko.SSHClient, paramiko.SFTPClient]:
         if self._need_reconnect():
-            LOGGER.info('connecting to SSH server...')
+            LOGGER.info("connecting to SSH server...")
             self.__ssh_client = paramiko.SSHClient()
             self.__ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -127,7 +142,8 @@ class STFPProvider(ProviderBase):
                 username=self.username,
                 password=self.password,
                 key_filename=self.key_path,
-                port=self.port)
+                port=self.port,
+            )
 
             self.__sftp_client = self.__ssh_client.open_sftp()
 
@@ -135,17 +151,19 @@ class STFPProvider(ProviderBase):
 
     @staticmethod
     def _sha256_file(ssh: paramiko.SSHClient, full_path: str):
-        _, stdout, stderr = ssh.exec_command('shasum -a 256 %s' % shlex.quote(full_path))
-        stdout_str = stdout.read().decode('utf-8')
-        stderr_str = stderr.read().decode('utf-8')
+        _, stdout, stderr = ssh.exec_command(
+            "shasum -a 256 %s" % shlex.quote(full_path)
+        )
+        stdout_str = stdout.read().decode("utf-8")
+        stderr_str = stderr.read().decode("utf-8")
         exit_code = stdout.channel.recv_exit_status()
         if exit_code != 0:
             if stdout_str:
-                LOGGER.error('STDOUT: %s', stdout_str)
+                LOGGER.error("STDOUT: %s", stdout_str)
             if stderr_str:
-                LOGGER.error('STDERR: %s', stderr_str)
-            raise ProviderError('unable to calculate file hash')
-        return stdout_str.split(' ')[0]
+                LOGGER.error("STDERR: %s", stderr_str)
+            raise ProviderError("unable to calculate file hash")
+        return stdout_str.split(" ")[0]
 
     @staticmethod
     def _file_state(ssh: paramiko.SSHClient, full_path: str):
@@ -180,7 +198,7 @@ class STFPProvider(ProviderBase):
                         raise ProviderError(
                             f"There seem to be a file with same name, but in "
                             f"different Unicode normalization forms. This is not "
-                            f"supported. File path is \"{rel_path}\""
+                            f'supported. File path is "{rel_path}"'
                         )
 
                     files[rel_path] = self._file_state(ssh, full_path)
@@ -200,7 +218,7 @@ class STFPProvider(ProviderBase):
         full_path = path_join(self.root_dir, path)
         full_path = normalize_unicode(full_path)
         if not full_path.startswith(self.root_dir):
-            raise ProviderError('Path outside of the root dir!')
+            raise ProviderError("Path outside of the root dir!")
         return full_path
 
     def get_file_state(self, path: str) -> FileState:
@@ -214,7 +232,7 @@ class STFPProvider(ProviderBase):
             assert S_ISREG(entry.st_mode)
             return self._file_state(ssh, full_path)
         except FileNotFoundError:
-            raise FileNotFoundProviderError(f'File not found: {full_path}')
+            raise FileNotFoundProviderError(f"File not found: {full_path}")
 
     def read(self, path: str) -> BinaryIO:
         ssh, sftp = self._connect()
@@ -226,11 +244,10 @@ class STFPProvider(ProviderBase):
             buffer.seek(0)
             return buffer
         except FileNotFoundError:
-            raise FileNotFoundProviderError(f'File not found: {full_path}')
+            raise FileNotFoundProviderError(f"File not found: {full_path}")
 
     def _ensure_dir(self, ssh: paramiko.SSHClient, dir_path: str) -> None:
-        stdin, stdout, stderr = ssh.exec_command(
-            'mkdir -p %s' % shlex.quote(dir_path))
+        stdin, stdout, stderr = ssh.exec_command("mkdir -p %s" % shlex.quote(dir_path))
 
         exit_code = stdout.channel.recv_exit_status()
 
@@ -238,10 +255,10 @@ class STFPProvider(ProviderBase):
             stdout_data = stdout.read()
             stderr_data = stderr.read()
             if stdout_data:
-                LOGGER.error('STDOUT: %s', stdout_data)
+                LOGGER.error("STDOUT: %s", stdout_data)
             if stderr_data:
-                LOGGER.error('STDERR: %s', stderr_data)
-            raise ProviderError('unable to ensure directory exists')
+                LOGGER.error("STDERR: %s", stderr_data)
+            raise ProviderError("unable to ensure directory exists")
 
     def write(self, path: str, content: BinaryIO) -> None:
         ssh, sftp = self._connect()
@@ -256,7 +273,7 @@ class STFPProvider(ProviderBase):
         try:
             sftp.remove(full_path)
         except FileNotFoundError:
-            raise FileNotFoundProviderError(f'File not found: {full_path}')
+            raise FileNotFoundProviderError(f"File not found: {full_path}")
 
     def move(self, source_path: str, destination_path: str) -> None:
         ssh, sftp = self._connect()
@@ -273,11 +290,14 @@ class STFPProvider(ProviderBase):
         if self.is_case_sensitive() or not is_case_only_change:
             if destination_exists:
                 raise FileAlreadyExistsError(
-                    f'File already exists: {destination_full_path}')
+                    f"File already exists: {destination_full_path}"
+                )
         else:
             LOGGER.warning(
                 'case-only change movement requested "%s" -> "%s"',
-                source_path, destination_path)
+                source_path,
+                destination_path,
+            )
 
         try:
             # make sure target directory exists
@@ -291,14 +311,16 @@ class STFPProvider(ProviderBase):
             else:
                 LOGGER.warning(
                     'case-only change movement requested "%s" -> "%s", '
-                    'will use temporary path', source_path, destination_path)
-                uniquifier = '.moving.' + str(uuid.uuid4())[:8]
+                    "will use temporary path",
+                    source_path,
+                    destination_path,
+                )
+                uniquifier = ".moving." + str(uuid.uuid4())[:8]
                 intermediary_path = destination_full_path + uniquifier
                 sftp.rename(source_full_path, intermediary_path)
                 sftp.rename(intermediary_path, destination_full_path)
         except FileNotFoundError:
-            raise FileNotFoundProviderError(
-                f'File not found: {source_full_path}')
+            raise FileNotFoundProviderError(f"File not found: {source_full_path}")
 
     def supported_hash_types(self) -> List[HashType]:
         return self.SUPPORTED_HASH_TYPES
@@ -308,9 +330,9 @@ class STFPProvider(ProviderBase):
             ssh, sftp = self._connect()
             full_path = path_join(self.root_dir, path)
             return self._sha256_file(ssh, full_path)
-        raise Exception('not supported')
+        raise Exception("not supported")
 
-    def clone(self) -> 'ProviderBase':
+    def clone(self) -> "ProviderBase":
         return STFPProvider(
             self.host,
             self.username,

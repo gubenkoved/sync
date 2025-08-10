@@ -16,13 +16,13 @@ class DropboxProviderTest(ProviderTestBase):
 
     def setUp(self):
         super().setUp()
-        root_dir = '/temp/sync-tests/%s' % uuid.uuid4()
+        root_dir = "/temp/sync-tests/%s" % uuid.uuid4()
         self.provider = DropboxProvider(
             root_dir=root_dir,
-            account_id='test',
-            token=os.environ['DROPBOX_TOKEN'],
-            app_key=os.environ['DROPBOX_APP_KEY'],
-            app_secret=os.environ['DROPBOX_APP_SECRET'],
+            account_id="test",
+            token=os.environ["DROPBOX_TOKEN"],
+            app_key=os.environ["DROPBOX_APP_KEY"],
+            app_secret=os.environ["DROPBOX_APP_SECRET"],
             is_refresh_token=True,
         )
         # TODO: how to delete whole dir?
@@ -31,5 +31,5 @@ class DropboxProviderTest(ProviderTestBase):
         return self.provider
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

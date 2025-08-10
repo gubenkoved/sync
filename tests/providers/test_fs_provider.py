@@ -35,20 +35,20 @@ class FSProviderTest(ProviderTestBase):
             if current_time != previous_mtime:
                 break
             LOGGER.debug(
-                'repeat changing modification time as it did'
-                'not seem to change...')
+                "repeat changing modification time as it did" "not seem to change..."
+            )
 
     def test_file_hash_is_taken_from_cache_until_file_modified(self):
-        with mock.patch('sync.providers.fs.sha256_stream') as patcher:
-            patcher.return_value = 'test_hash'
+        with mock.patch("sync.providers.fs.sha256_stream") as patcher:
+            patcher.return_value = "test_hash"
 
-            with bytes_as_stream(b'foo') as stream:
-                self.provider.write('foo', stream)
+            with bytes_as_stream(b"foo") as stream:
+                self.provider.write("foo", stream)
 
-            foo_path = os.path.join(self.root_dir, 'foo')
+            foo_path = os.path.join(self.root_dir, "foo")
 
             mtime = os.path.getmtime(foo_path)
-            LOGGER.info('mtime: %s', mtime)
+            LOGGER.info("mtime: %s", mtime)
 
             _ = self.provider.get_state()
             self.assertEqual(1, patcher.call_count)
@@ -80,14 +80,14 @@ class FSProviderTest(ProviderTestBase):
             patcher.reset_mock()
 
     def test_file_hash_is_taken_from_cache_until_file_modified_multiple_files(self):
-        with mock.patch('sync.providers.fs.sha256_stream') as patcher:
-            patcher.return_value = 'test_hash'
+        with mock.patch("sync.providers.fs.sha256_stream") as patcher:
+            patcher.return_value = "test_hash"
 
-            with bytes_as_stream(b'foo') as stream:
-                self.provider.write('foo', stream)
+            with bytes_as_stream(b"foo") as stream:
+                self.provider.write("foo", stream)
 
-            with bytes_as_stream(b'bar') as stream:
-                self.provider.write('bar', stream)
+            with bytes_as_stream(b"bar") as stream:
+                self.provider.write("bar", stream)
 
             # cache miss
             _ = self.provider.get_state()
@@ -99,8 +99,8 @@ class FSProviderTest(ProviderTestBase):
             self.assertEqual(0, patcher.call_count)
             patcher.reset_mock()
 
-            foo_path = os.path.join(self.root_dir, 'foo')
-            bar_path = os.path.join(self.root_dir, 'bar')
+            foo_path = os.path.join(self.root_dir, "foo")
+            bar_path = os.path.join(self.root_dir, "bar")
 
             # modify one
             foo_mtime = os.path.getmtime(foo_path)
@@ -131,5 +131,5 @@ class FSProviderTest(ProviderTestBase):
             patcher.reset_mock()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

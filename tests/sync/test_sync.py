@@ -55,7 +55,8 @@ class SyncTestBase(TestCase):
 
         for path in src_state.files:
             self.assertTrue(
-                self.syncer.compare(path), f'files are different by path {path}')
+                self.syncer.compare(path), f"files are different by path {path}"
+            )
 
     def do_sync(self, expected_sync_actions=None, ensure_same_state=True):
         sync_actions = self.syncer.sync()
@@ -78,31 +79,25 @@ class SyncTestBase(TestCase):
 
         self.assertEqual(0, len(dst_provider.get_state().files))
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo", stream)
 
-        self.do_sync(expected_sync_actions=[
-            UploadSyncAction('foo')
-        ])
+        self.do_sync(expected_sync_actions=[UploadSyncAction("foo")])
 
         self.assertEqual(1, len(dst_provider.get_state().files))
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('bar', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("bar", stream)
 
-        self.do_sync([
-            UploadSyncAction('bar')
-        ])
+        self.do_sync([UploadSyncAction("bar")])
 
         self.assertEqual(2, len(dst_provider.get_state().files))
 
         # add file on destination
-        with bytes_as_stream(b'data') as stream:
-            dst_provider.write('baz', stream)
+        with bytes_as_stream(b"data") as stream:
+            dst_provider.write("baz", stream)
 
-        self.do_sync(expected_sync_actions=[
-            DownloadSyncAction('baz')
-        ])
+        self.do_sync(expected_sync_actions=[DownloadSyncAction("baz")])
 
         self.assertEqual(3, len(src_provider.get_state().files))
 
@@ -110,60 +105,56 @@ class SyncTestBase(TestCase):
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo", stream)
 
-        self.do_sync([
-            UploadSyncAction('foo')
-        ])
+        self.do_sync([UploadSyncAction("foo")])
 
-        self.assertEqual(
-            b'data',
-            stream_to_bytes(dst_provider.read('foo'))
-        )
+        self.assertEqual(b"data", stream_to_bytes(dst_provider.read("foo")))
 
-        with bytes_as_stream(b'updated') as stream:
-            src_provider.write('foo', stream)
+        with bytes_as_stream(b"updated") as stream:
+            src_provider.write("foo", stream)
 
-        self.do_sync([
-            UploadSyncAction('foo')
-        ])
+        self.do_sync([UploadSyncAction("foo")])
 
-        self.assertEqual(
-            b'updated',
-            stream_to_bytes(dst_provider.read('foo'))
-        )
+        self.assertEqual(b"updated", stream_to_bytes(dst_provider.read("foo")))
 
     def test_sync_deleted_files(self):
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo", stream)
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('bar', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("bar", stream)
 
-        self.do_sync([
-            UploadSyncAction('foo'),
-            UploadSyncAction('bar'),
-        ])
+        self.do_sync(
+            [
+                UploadSyncAction("foo"),
+                UploadSyncAction("bar"),
+            ]
+        )
 
         self.assertEqual(2, len(dst_provider.get_state().files))
 
-        src_provider.remove('foo')
+        src_provider.remove("foo")
 
-        self.do_sync([
-            RemoveOnDestinationSyncAction('foo'),
-        ])
+        self.do_sync(
+            [
+                RemoveOnDestinationSyncAction("foo"),
+            ]
+        )
 
         self.assertEqual(1, len(dst_provider.get_state().files))
 
-        dst_provider.remove('bar')
+        dst_provider.remove("bar")
 
-        self.do_sync([
-            RemoveOnSourceSyncAction('bar'),
-        ])
+        self.do_sync(
+            [
+                RemoveOnSourceSyncAction("bar"),
+            ]
+        )
 
         self.assertEqual(0, len(dst_provider.get_state().files))
 
@@ -171,30 +162,28 @@ class SyncTestBase(TestCase):
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo", stream)
 
-        self.do_sync([
-            UploadSyncAction('foo'),
-        ])
+        self.do_sync(
+            [
+                UploadSyncAction("foo"),
+            ]
+        )
 
         self.assertEqual(1, len(dst_provider.get_state().files))
 
         # move the file on source
-        src_provider.move('foo', 'bar')
+        src_provider.move("foo", "bar")
 
-        self.do_sync([
-            MoveOnDestinationSyncAction('foo', 'bar')
-        ])
+        self.do_sync([MoveOnDestinationSyncAction("foo", "bar")])
 
         self.assertEqual(1, len(dst_provider.get_state().files))
 
         # move the file on destination
-        dst_provider.move('bar', 'baz')
+        dst_provider.move("bar", "baz")
 
-        self.do_sync([
-            MoveOnSourceSyncAction('bar', 'baz')
-        ])
+        self.do_sync([MoveOnSourceSyncAction("bar", "baz")])
 
         self.assertEqual(1, len(dst_provider.get_state().files))
 
@@ -202,24 +191,26 @@ class SyncTestBase(TestCase):
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo", stream)
 
-        with bytes_as_stream(b'data') as stream:
-            dst_provider.write('foo', stream)
+        with bytes_as_stream(b"data") as stream:
+            dst_provider.write("foo", stream)
 
-        self.do_sync([
-            ResolveConflictSyncAction('foo'),
-        ])
+        self.do_sync(
+            [
+                ResolveConflictSyncAction("foo"),
+            ]
+        )
 
     def test_simulate_loss_of_state_file(self):
         src_provider = self.syncer.src_provider
 
         paths = []
         for file_index in range(10):
-            data = (f'data-{file_index}').encode('utf-8')
+            data = (f"data-{file_index}").encode("utf-8")
             with bytes_as_stream(data) as stream:
-                path = f'file_{file_index}'
+                path = f"file_{file_index}"
                 src_provider.write(path, stream)
                 paths.append(path)
 
@@ -229,203 +220,221 @@ class SyncTestBase(TestCase):
         os.remove(self.syncer.get_state_file_path())
 
         # run sync again
-        self.do_sync([
-            ResolveConflictSyncAction(path)
-            for path in paths
-        ])
+        self.do_sync([ResolveConflictSyncAction(path) for path in paths])
 
     def test_limited_depth(self):
         src_provider = self.syncer.src_provider
 
         with random_bytes_stream() as stream:
-            src_provider.write('file1', stream)
-            src_provider.write('foo/file1', stream)
-            src_provider.write('foo/file2', stream)
-            src_provider.write('foo/bar/file1', stream)
-            src_provider.write('foo/bar/file2', stream)
+            src_provider.write("file1", stream)
+            src_provider.write("foo/file1", stream)
+            src_provider.write("foo/file2", stream)
+            src_provider.write("foo/bar/file1", stream)
+            src_provider.write("foo/bar/file2", stream)
 
         # normally depth is set in the constructor, but it is okay currently
         # to modify it for simplicity
         self.syncer.depth = 1
 
-        self.do_sync([
-            UploadSyncAction('file1')
-        ], ensure_same_state=False)
+        self.do_sync([UploadSyncAction("file1")], ensure_same_state=False)
 
         self.syncer.depth = 2
 
-        self.do_sync([
-            ResolveConflictSyncAction('file1'),
-            UploadSyncAction('foo/file1'),
-            UploadSyncAction('foo/file2'),
-        ], ensure_same_state=False)
+        self.do_sync(
+            [
+                ResolveConflictSyncAction("file1"),
+                UploadSyncAction("foo/file1"),
+                UploadSyncAction("foo/file2"),
+            ],
+            ensure_same_state=False,
+        )
 
     def test_move_multiple_files_with_same_hash(self):
         src_provider = self.syncer.src_provider
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo/file1', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/file1", stream)
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo/file2', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/file2", stream)
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo/file3', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/file3", stream)
 
-        self.do_sync([
-            UploadSyncAction('foo/file1'),
-            UploadSyncAction('foo/file2'),
-            UploadSyncAction('foo/file3'),
-        ])
+        self.do_sync(
+            [
+                UploadSyncAction("foo/file1"),
+                UploadSyncAction("foo/file2"),
+                UploadSyncAction("foo/file3"),
+            ]
+        )
 
         # now move files into the new directory
-        src_provider.move('foo/file1', 'bar/file1')
-        src_provider.move('foo/file2', 'bar/file2')
-        src_provider.move('foo/file3', 'bar/file3')
+        src_provider.move("foo/file1", "bar/file1")
+        src_provider.move("foo/file2", "bar/file2")
+        src_provider.move("foo/file3", "bar/file3")
 
-        self.do_sync([
-            MoveOnDestinationSyncAction('foo/file1', 'bar/file1'),
-            MoveOnDestinationSyncAction('foo/file2', 'bar/file2'),
-            MoveOnDestinationSyncAction('foo/file3', 'bar/file3'),
-        ])
+        self.do_sync(
+            [
+                MoveOnDestinationSyncAction("foo/file1", "bar/file1"),
+                MoveOnDestinationSyncAction("foo/file2", "bar/file2"),
+                MoveOnDestinationSyncAction("foo/file3", "bar/file3"),
+            ]
+        )
 
     def test_move_multiple_files_with_filename_changes(self):
         src_provider = self.syncer.src_provider
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo/file-is-named-like-this', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/file-is-named-like-this", stream)
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo/some-totally-different-naming', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/some-totally-different-naming", stream)
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo/boo', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/boo", stream)
 
-        self.do_sync([
-            UploadSyncAction('foo/file-is-named-like-this'),
-            UploadSyncAction('foo/some-totally-different-naming'),
-            UploadSyncAction('foo/boo'),
-        ])
+        self.do_sync(
+            [
+                UploadSyncAction("foo/file-is-named-like-this"),
+                UploadSyncAction("foo/some-totally-different-naming"),
+                UploadSyncAction("foo/boo"),
+            ]
+        )
 
         # now move files into the new directory and slightly adjust names
-        src_provider.move('foo/file-is-named-like-this', 'bar/file_is_named_like_this')
-        src_provider.move('foo/some-totally-different-naming', 'bar/some-totally-different-naming-changed')
-        src_provider.move('foo/boo', 'bar/boo-new')
+        src_provider.move("foo/file-is-named-like-this", "bar/file_is_named_like_this")
+        src_provider.move(
+            "foo/some-totally-different-naming",
+            "bar/some-totally-different-naming-changed",
+        )
+        src_provider.move("foo/boo", "bar/boo-new")
 
-        self.do_sync([
-            MoveOnDestinationSyncAction(
-                'foo/file-is-named-like-this', 'bar/file_is_named_like_this'),
-            MoveOnDestinationSyncAction(
-                'foo/some-totally-different-naming', 'bar/some-totally-different-naming-changed'),
-            MoveOnDestinationSyncAction(
-                'foo/boo', 'bar/boo-new'),
-        ])
+        self.do_sync(
+            [
+                MoveOnDestinationSyncAction(
+                    "foo/file-is-named-like-this", "bar/file_is_named_like_this"
+                ),
+                MoveOnDestinationSyncAction(
+                    "foo/some-totally-different-naming",
+                    "bar/some-totally-different-naming-changed",
+                ),
+                MoveOnDestinationSyncAction("foo/boo", "bar/boo-new"),
+            ]
+        )
 
     def test_case_only_filename_change(self):
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo/data', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/data", stream)
 
-        self.do_sync([
-            UploadSyncAction('foo/data'),
-        ])
+        self.do_sync(
+            [
+                UploadSyncAction("foo/data"),
+            ]
+        )
 
-        src_provider.move('foo/data', 'foo/Data')
+        src_provider.move("foo/data", "foo/Data")
 
-        self.do_sync([
-            MoveOnDestinationSyncAction('foo/data', 'foo/Data'),
-        ])
+        self.do_sync(
+            [
+                MoveOnDestinationSyncAction("foo/data", "foo/Data"),
+            ]
+        )
 
-        dst_provider.move('foo/Data', 'foo/DATA')
+        dst_provider.move("foo/Data", "foo/DATA")
 
-        self.do_sync([
-            MoveOnSourceSyncAction('foo/Data', 'foo/DATA'),
-        ])
+        self.do_sync(
+            [
+                MoveOnSourceSyncAction("foo/Data", "foo/DATA"),
+            ]
+        )
 
     def test_move_same_way_on_both_sides_is_noop(self):
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo/data', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/data", stream)
 
-        self.do_sync([
-            UploadSyncAction('foo/data'),
-        ])
+        self.do_sync(
+            [
+                UploadSyncAction("foo/data"),
+            ]
+        )
 
-        src_provider.move('foo/data', 'bar/data')
-        dst_provider.move('foo/data', 'bar/data')
+        src_provider.move("foo/data", "bar/data")
+        dst_provider.move("foo/data", "bar/data")
 
-        self.do_sync([
-            NoopSyncAction('foo/data'),
-        ])
+        self.do_sync(
+            [
+                NoopSyncAction("foo/data"),
+            ]
+        )
 
     def test_move_on_both_sides_to_different_locations_leads_to_error(self):
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo/data', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/data", stream)
 
-        self.do_sync([
-            UploadSyncAction('foo/data'),
-        ])
-
-        src_provider.move('foo/data', 'bar/data')
-        dst_provider.move('foo/data', 'baz/data')
-
-        self.assertRaises(
-            SyncError,
-            self.syncer.sync
+        self.do_sync(
+            [
+                UploadSyncAction("foo/data"),
+            ]
         )
+
+        src_provider.move("foo/data", "bar/data")
+        dst_provider.move("foo/data", "baz/data")
+
+        self.assertRaises(SyncError, self.syncer.sync)
 
     def test_changed_on_source_removed_on_destination(self):
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo/data', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/data", stream)
 
-        self.do_sync([
-            UploadSyncAction('foo/data'),
-        ])
+        self.do_sync(
+            [
+                UploadSyncAction("foo/data"),
+            ]
+        )
 
         # change on source
-        with bytes_as_stream(b'data-2') as stream:
-            src_provider.write('foo/data', stream)
+        with bytes_as_stream(b"data-2") as stream:
+            src_provider.write("foo/data", stream)
 
         # remove on destination
-        dst_provider.remove('foo/data')
+        dst_provider.remove("foo/data")
 
-        self.assertRaises(
-            SyncError,
-            self.syncer.sync
-        )
+        self.assertRaises(SyncError, self.syncer.sync)
 
     def test_changed_on_destination_removed_on_source(self):
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
 
-        with bytes_as_stream(b'data') as stream:
-            src_provider.write('foo/data', stream)
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/data", stream)
 
-        self.do_sync([
-            UploadSyncAction('foo/data'),
-        ])
+        self.do_sync(
+            [
+                UploadSyncAction("foo/data"),
+            ]
+        )
 
         # change on destination
-        with bytes_as_stream(b'data-2') as stream:
-            dst_provider.write('foo/data', stream)
+        with bytes_as_stream(b"data-2") as stream:
+            dst_provider.write("foo/data", stream)
 
         # remove on source
-        src_provider.remove('foo/data')
+        src_provider.remove("foo/data")
 
-        self.assertRaises(
-            SyncError,
-            self.syncer.sync
-        )
+        self.assertRaises(SyncError, self.syncer.sync)
 
     # TODO: write this tricky test where folder names are changing for case
     #  insensitive providers... there could also be multiple moves which use
@@ -437,32 +446,36 @@ class SyncTestBase(TestCase):
     def test_sync_with_filter(self):
         src_provider = self.syncer.src_provider
 
-        self.create_file(src_provider, 'file.foo')
-        self.create_file(src_provider, 'foo/bar')
-        self.create_file(src_provider, 'foo/foo')
-        self.create_file(src_provider, 'file.bar')
-        self.create_file(src_provider, 'bar/foo')
-        self.create_file(src_provider, 'bar/bar')
+        self.create_file(src_provider, "file.foo")
+        self.create_file(src_provider, "foo/bar")
+        self.create_file(src_provider, "foo/foo")
+        self.create_file(src_provider, "file.bar")
+        self.create_file(src_provider, "bar/foo")
+        self.create_file(src_provider, "bar/bar")
 
-        self.syncer.filter = '!*foo'
+        self.syncer.filter = "!*foo"
 
-        self.do_sync([
-            UploadSyncAction('foo/bar'),
-            UploadSyncAction('file.bar'),
-            UploadSyncAction('bar/bar'),
-        ])
+        self.do_sync(
+            [
+                UploadSyncAction("foo/bar"),
+                UploadSyncAction("file.bar"),
+                UploadSyncAction("bar/bar"),
+            ]
+        )
 
         # so far when we change filter state file is no longer reusable since
         # providers handle changes
 
-        self.syncer.filter = 'foo*;*.foo'
+        self.syncer.filter = "foo*;*.foo"
 
-        self.do_sync([
-            ResolveConflictSyncAction('foo/bar'),
-            UploadSyncAction('foo/foo'),
-            UploadSyncAction('file.foo'),
-        ])
+        self.do_sync(
+            [
+                ResolveConflictSyncAction("foo/bar"),
+                UploadSyncAction("foo/foo"),
+                UploadSyncAction("file.foo"),
+            ]
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pytest.main()

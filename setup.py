@@ -1,17 +1,17 @@
 from setuptools import find_namespace_packages, setup
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     setup(
-        name='sync',
-        version='0.5.0',
-        packages=find_namespace_packages(where='src'),
-        package_dir={'': 'src'},
+        name="sync",
+        version="0.5.0",
+        packages=find_namespace_packages(where="src"),
+        package_dir={"": "src"},
         install_requires=[
-            'coloredlogs',
-            'dropbox',
-            'paramiko',
+            "coloredlogs",
+            "dropbox",
+            "paramiko",
         ],
         entry_points={
-            'console_scripts': ['egsync=sync.cli:entrypoint'],
-        }
+            "console_scripts": ["egsync=sync.cli:entrypoint"],
+        },
     )

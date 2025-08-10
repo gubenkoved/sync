@@ -27,9 +27,15 @@ LISTING_LIMIT = 1000
 class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
     SUPPORTED_HASH_TYPES = [HashType.DROPBOX_SHA256]
 
-    def __init__(self, account_id: str, token: str, root_dir: str,
-                 is_refresh_token=False, app_key: Optional[str] = None,
-                 app_secret: Optional[str] = None):
+    def __init__(
+        self,
+        account_id: str,
+        token: str,
+        root_dir: str,
+        is_refresh_token=False,
+        app_key: Optional[str] = None,
+        app_secret: Optional[str] = None,
+    ):
         self.account_id = account_id
         self.root_dir = root_dir
         self.token = token
@@ -39,13 +45,15 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         self._dropbox = None
 
     def get_label(self) -> str:
-        return 'DBX(%s)' % self.root_dir
+        return "DBX(%s)" % self.root_dir
 
     def get_handle(self) -> str:
-        return 'd-' + hash_dict({
-            'account_id': self.account_id,
-            'root_dir': self.root_dir,
-        })
+        return "d-" + hash_dict(
+            {
+                "account_id": self.account_id,
+                "root_dir": self.root_dir,
+            }
+        )
 
     def is_case_sensitive(self) -> bool:
         # Dropbox is case-insensitive, it makes efforts to be case-preserving
@@ -55,9 +63,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
     def _get_dropbox(self) -> dropbox.Dropbox:
         if self._dropbox is None:
             if not self.is_refresh_token:
-                self._dropbox = dropbox.Dropbox(
-                    oauth2_access_token=self.token
-                )
+                self._dropbox = dropbox.Dropbox(oauth2_access_token=self.token)
             else:
                 self._dropbox = dropbox.Dropbox(
                     oauth2_refresh_token=self.token,
@@ -74,29 +80,31 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
 
     @staticmethod
     def __dir(dir_path: str) -> str:
-        if dir_path == '/':
-            return ''  # by Dropbox convention
+        if dir_path == "/":
+            return ""  # by Dropbox convention
         return dir_path
 
     def _ensure_root_dir(self, dbx: dropbox.Dropbox):
         try:
             dbx.files_list_folder(self.__dir(self.root_dir), limit=1)
         except ApiError as err:
-            if 'not_found' in str(err):
-                LOGGER.info('root directory was not found -> create')
+            if "not_found" in str(err):
+                LOGGER.info("root directory was not found -> create")
                 dbx.files_create_folder_v2(self.root_dir)
 
-    def _list_folder(
-            self, dbx: dropbox.Dropbox, path: str, recursive: bool = False):
-        LOGGER.debug('listing folder %s (recursive? %s)', path, recursive)
+    def _list_folder(self, dbx: dropbox.Dropbox, path: str, recursive: bool = False):
+        LOGGER.debug("listing folder %s (recursive? %s)", path, recursive)
         entries = []
         list_result = dbx.files_list_folder(
-            self.__dir(path), recursive=recursive, limit=LISTING_LIMIT)
-        LOGGER.debug('retrieved %s entries', len(list_result.entries))
+            self.__dir(path), recursive=recursive, limit=LISTING_LIMIT
+        )
+        LOGGER.debug("retrieved %s entries", len(list_result.entries))
         entries.extend(list_result.entries)
         while list_result.has_more:
             list_result = dbx.files_list_folder_continue(list_result.cursor)
-            LOGGER.debug('retrieved %s entries (continuation)', len(list_result.entries))
+            LOGGER.debug(
+                "retrieved %s entries (continuation)", len(list_result.entries)
+            )
             entries.extend(list_result.entries)
         return entries
 
@@ -112,9 +120,9 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         # for some reason Dropbox can return entries with different casing
         # so when we check we lowercase both even though paths on Unix
         # are case-sensitive and not sensitive on Windows
-        assert full_path.lower().startswith(self.root_dir.lower()), \
-            'Full path outside of root dir (%s): "%s"' % (
-                self.root_dir, full_path)
+        assert full_path.lower().startswith(
+            self.root_dir.lower()
+        ), 'Full path outside of root dir (%s): "%s"' % (self.root_dir, full_path)
 
     def __get_state_walking(self, max_depth: int):
         dbx = self._get_dropbox()
@@ -165,8 +173,10 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             assert isinstance(entry, FileMetadata)
             return self._file_metadata_to_file_state(entry)
         except ApiError as err:
-            if 'not_found' in str(err):
-                raise FileNotFoundProviderError(f'File not found at {full_path}') from err
+            if "not_found" in str(err):
+                raise FileNotFoundProviderError(
+                    f"File not found at {full_path}"
+                ) from err
             raise
 
     def read(self, path: str) -> BinaryIO:
@@ -176,8 +186,10 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             metadata, response = dbx.files_download(full_path)
             return io.BytesIO(response.content)
         except ApiError as err:
-            if 'not_found' in str(err):
-                raise FileNotFoundProviderError(f'File not found at {full_path}') from err
+            if "not_found" in str(err):
+                raise FileNotFoundProviderError(
+                    f"File not found at {full_path}"
+                ) from err
             raise
 
     def write(self, path: str, content: BinaryIO) -> None:
@@ -195,7 +207,8 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         except ApiError as err:
             raise ConflictError(
                 f'Can not update "{path}" due to conflict as revision tag does '
-                f'not match current state') from err
+                f"not match current state"
+            ) from err
 
     def remove(self, path: str) -> None:
         dbx = self._get_dropbox()
@@ -203,8 +216,10 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         try:
             dbx.files_delete_v2(full_path)
         except ApiError as err:
-            if 'not_found' in str(err):
-                raise FileNotFoundProviderError(f'File not found at {full_path}') from err
+            if "not_found" in str(err):
+                raise FileNotFoundProviderError(
+                    f"File not found at {full_path}"
+                ) from err
             raise
 
     @staticmethod
@@ -216,12 +231,14 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
                 dbx.files_move_v2(src_path, dst_path)
                 break
             except ApiError as err:
-                if attempt <= 5 and 'too_many_write_operations' in str(err):
+                if attempt <= 5 and "too_many_write_operations" in str(err):
                     back_off_time = 1.0 * (2 ** (attempt - 1))
                     LOGGER.warning(
                         'Got "too_many_write_operations" error, '
-                        'attempting retry in %.1f seconds (attempt %d)...',
-                        back_off_time, attempt)
+                        "attempting retry in %.1f seconds (attempt %d)...",
+                        back_off_time,
+                        attempt,
+                    )
                     time.sleep(back_off_time)
                     continue
 
@@ -234,7 +251,9 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
         if normalize_unicode(source_path) == normalize_unicode(destination_path):
             LOGGER.warning(
                 'suppressing movement for "%s" since source and destination '
-                'are the same after unicode normalization to NFC form', source_path)
+                "are the same after unicode normalization to NFC form",
+                source_path,
+            )
             return
 
         source_full_path = self._get_full_path(source_path)
@@ -249,18 +268,23 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             else:
                 LOGGER.warning(
                     'case-only change movement requested "%s" -> "%s", '
-                    'will use temporary path', source_path, destination_path)
-                uniquifier = '.moving.' + str(uuid.uuid4())[:8]
+                    "will use temporary path",
+                    source_path,
+                    destination_path,
+                )
+                uniquifier = ".moving." + str(uuid.uuid4())[:8]
                 intermediary_path = destination_full_path + uniquifier
                 self.__move_wrapped(dbx, source_full_path, intermediary_path)
                 self.__move_wrapped(dbx, intermediary_path, destination_full_path)
         except ApiError as err:
-            if 'not_found' in str(err):
+            if "not_found" in str(err):
                 raise FileNotFoundProviderError(
-                    f'File not found at {source_full_path}') from err
-            elif 'conflict' in str(err):
+                    f"File not found at {source_full_path}"
+                ) from err
+            elif "conflict" in str(err):
                 raise FileAlreadyExistsError(
-                    f'File already exists at {destination_full_path}') from err
+                    f"File already exists at {destination_full_path}"
+                ) from err
             raise
 
     def supported_hash_types(self) -> List[HashType]:
@@ -274,7 +298,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             raise ProviderError('Expected file by path "%s"' % path)
         return result.content_hash
 
-    def clone(self) -> 'ProviderBase':
+    def clone(self) -> "ProviderBase":
         return DropboxProvider(
             self.account_id,
             self.token,

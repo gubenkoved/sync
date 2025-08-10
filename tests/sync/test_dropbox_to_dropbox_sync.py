@@ -16,19 +16,19 @@ class DropboxToDropboxSyncTest(SyncTestBase):
         super().setUp()
 
         src_provider = DropboxProvider(
-            root_dir='/temp/sync-tests/%s' % uuid.uuid4(),
-            account_id='test_src',
-            token=os.environ['DROPBOX_TOKEN'],
-            app_key=os.environ['DROPBOX_APP_KEY'],
-            app_secret=os.environ['DROPBOX_APP_SECRET'],
+            root_dir="/temp/sync-tests/%s" % uuid.uuid4(),
+            account_id="test_src",
+            token=os.environ["DROPBOX_TOKEN"],
+            app_key=os.environ["DROPBOX_APP_KEY"],
+            app_secret=os.environ["DROPBOX_APP_SECRET"],
             is_refresh_token=True,
         )
         dst_provider = DropboxProvider(
-            root_dir='/temp/sync-tests/%s' % uuid.uuid4(),
-            account_id='test_dst',
-            token=os.environ['DROPBOX_TOKEN'],
-            app_key=os.environ['DROPBOX_APP_KEY'],
-            app_secret=os.environ['DROPBOX_APP_SECRET'],
+            root_dir="/temp/sync-tests/%s" % uuid.uuid4(),
+            account_id="test_dst",
+            token=os.environ["DROPBOX_TOKEN"],
+            app_key=os.environ["DROPBOX_APP_KEY"],
+            app_secret=os.environ["DROPBOX_APP_SECRET"],
             is_refresh_token=True,
         )
 
