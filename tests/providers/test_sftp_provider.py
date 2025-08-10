@@ -7,8 +7,8 @@ import uuid
 import pytest
 
 from sync.core import ProviderBase
-from sync.provider import FolderNotFoundProviderError
 from sync.providers.sftp import STFPProvider
+from tests.common import cleanup_provider
 from tests.providers.test_provider_base import ProviderTestBase
 
 LOGGER = logging.getLogger(__name__)
@@ -29,19 +29,9 @@ class SFTPProviderTest(ProviderTestBase):
 
     def setUp(self):
         super().setUp()
-        self.subdir_name = str(uuid.uuid4())
-        self.root_dir = "/tmp/sync-tests/%s" % self.subdir_name
+        self.root_dir = "/tmp/sync-tests/%s" % str(uuid.uuid4())
         self.provider = self.__create_provider(self.root_dir)
-
-        def cleanup():
-            cleanup_provider = self.__create_provider(root_dir="/tmp/sync-tests")
-
-            try:
-                cleanup_provider.remove_folder(self.subdir_name)
-            except FolderNotFoundProviderError:
-                LOGGER.debug(f"Folder {self.root_dir} not found")
-
-        self.addCleanup(cleanup)
+        self.addCleanup(lambda: cleanup_provider(self.provider))
 
     def get_provider(self) -> ProviderBase:
         return self.provider

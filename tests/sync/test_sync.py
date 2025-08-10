@@ -19,7 +19,12 @@ from sync.core import (
     make_filter,
 )
 from sync.provider import ProviderBase
-from tests.common import bytes_as_stream, random_bytes_stream, stream_to_bytes
+from tests.common import (
+    bytes_as_stream,
+    random_bytes_stream,
+    stream_to_bytes,
+    cleanup_provider,
+)
 
 
 class SyncTestBase(TestCase):
@@ -37,6 +42,10 @@ class SyncTestBase(TestCase):
 
         if os.path.exists(state_file_path):
             os.remove(state_file_path)
+
+        # cleanup providers
+        cleanup_provider(self.syncer.src_provider)
+        cleanup_provider(self.syncer.dst_provider)
 
     def ensure_same_state(self):
         src_state = self.syncer.src_provider.get_state()

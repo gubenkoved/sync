@@ -1,16 +1,14 @@
 import logging
 import os
-import shutil
 import tempfile
 import unittest
 import unittest.mock as mock
 
 from sync.cache import InMemoryCache
 from sync.core import ProviderBase
-from sync.provider import FolderNotFoundProviderError
 from sync.providers.dropbox import DropboxProvider
 from sync.providers.fs import FSProvider
-from tests.common import bytes_as_stream
+from tests.common import bytes_as_stream, cleanup_provider
 from tests.providers.test_provider_base import ProviderTestBase
 
 LOGGER = logging.getLogger(__name__)
@@ -28,21 +26,9 @@ class FSProviderTest(ProviderTestBase):
     def setUp(self):
         super().setUp()
         self.root_dir = tempfile.mkdtemp()
-        self.subdir_name = os.path.split(self.root_dir)[1]
         self.cache = InMemoryCache()
         self.provider = self.__create_provider(self.root_dir)
-
-        def cleanup():
-            cleanup_provider = self.__create_provider(
-                # use root dir parent as root
-                os.path.basename(self.root_dir),
-            )
-            try:
-                cleanup_provider.remove_folder(self.subdir_name)
-            except FolderNotFoundProviderError:
-                LOGGER.debug(f"Folder {self.root_dir} not found")
-
-        self.addCleanup(cleanup)
+        self.addCleanup(lambda: cleanup_provider(self.provider))
 
     def get_provider(self) -> ProviderBase:
         return self.provider
