@@ -11,6 +11,7 @@ from sync.hashing import HashType
 from sync.provider import (
     FileAlreadyExistsError,
     FileNotFoundProviderError,
+    FolderNotFoundProviderError,
     ProviderBase,
     ProviderError,
     SafeUpdateSupportMixin,
@@ -27,6 +28,10 @@ class ProviderTestBase(unittest.TestCase):
     @abc.abstractmethod
     def get_provider(self) -> ProviderBase:
         raise NotImplementedError
+
+    def create_file(self, provider: ProviderBase, path: str):
+        with random_bytes_stream(1024) as stream:
+            provider.write(path, stream)
 
     def assert_storage_state_equal(self, expected: StorageState, actual: StorageState):
         self.assertEqual(len(expected.files), len(actual.files))
@@ -93,8 +98,8 @@ class ProviderTestBase(unittest.TestCase):
             with bytes_as_stream(b"test2") as stream2:
                 provider.write("foo/bar/baz.file", stream1)
                 provider.write("foo/bar.file", stream2)
-                provider.remove("foo/bar/baz.file")
-                provider.remove("foo/bar.file")
+                provider.remove_file("foo/bar/baz.file")
+                provider.remove_file("foo/bar.file")
 
         state = provider.get_state()
         self.assertEqual(0, len(state.files))
@@ -118,7 +123,7 @@ class ProviderTestBase(unittest.TestCase):
     def test_remove_missing_file(self):
         provider = self.get_provider()
         self.assertRaises(
-            FileNotFoundProviderError, lambda: provider.remove("foo.file")
+            FileNotFoundProviderError, lambda: provider.remove_file("foo.file")
         )
 
     def test_compute_native_hash(self):
@@ -275,7 +280,7 @@ class ProviderTestBase(unittest.TestCase):
         self.assertEqual(count, len(state.files))
 
         for file_idx in range(count):
-            provider.remove("file_%s" % file_idx)
+            provider.remove_file("file_%s" % file_idx)
 
         state = provider.get_state()
         self.assertEqual(0, len(state.files))
@@ -390,6 +395,44 @@ class ProviderTestBase(unittest.TestCase):
                     read_data = provider.read(read_path).read()
 
                     self.assertEqual(b"whatever", read_data)
+
+    def test_remove_folder(self):
+        provider = self.get_provider()
+
+        self.create_file(provider, "foo/file1")
+        self.create_file(provider, "foo/file2")
+        self.create_file(provider, "bar/file")
+
+        provider.remove_folder("foo")
+
+        self.assertEqual({"bar/file"}, set(provider.get_state().files))
+
+        provider.remove_folder("bar")
+
+        self.assertEqual(set(), set(provider.get_state().files))
+
+    def test_remove_non_existing_folder(self):
+        provider = self.get_provider()
+
+        self.assertRaises(
+            FolderNotFoundProviderError,
+            lambda: provider.remove_folder("foo"),
+        )
+
+    def test_remove_folder_nested(self):
+        provider = self.get_provider()
+
+        self.create_file(provider, "foo/file1")
+        self.create_file(provider, "foo/file2")
+        self.create_file(provider, "foo/bar/file1")
+        self.create_file(provider, "foo/bar/file2")
+        self.create_file(provider, "foo/bar/spam/file1")
+        self.create_file(provider, "foo/bar/spam/file2")
+        self.create_file(provider, "file")
+
+        provider.remove_folder("foo")
+
+        self.assertEqual({"file"}, set(provider.get_state().files))
 
 
 if __name__ == "__main__":

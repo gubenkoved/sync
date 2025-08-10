@@ -13,6 +13,7 @@ from sync.provider import (
     ConflictError,
     FileAlreadyExistsError,
     FileNotFoundProviderError,
+    FolderNotFoundProviderError,
     ProviderBase,
     ProviderError,
     SafeUpdateSupportMixin,
@@ -210,7 +211,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
                 f"not match current state"
             ) from err
 
-    def remove(self, path: str) -> None:
+    def remove_file(self, path: str) -> None:
         dbx = self._get_dropbox()
         full_path = self._get_full_path(path)
         try:
@@ -219,6 +220,18 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             if "not_found" in str(err):
                 raise FileNotFoundProviderError(
                     f"File not found at {full_path}"
+                ) from err
+            raise
+
+    def remove_folder(self, path: str) -> None:
+        dbx = self._get_dropbox()
+        full_path = self._get_full_path(path)
+        try:
+            dbx.files_delete_v2(full_path)
+        except ApiError as err:
+            if "not_found" in str(err):
+                raise FolderNotFoundProviderError(
+                    f"Folder not found at {full_path}"
                 ) from err
             raise
 

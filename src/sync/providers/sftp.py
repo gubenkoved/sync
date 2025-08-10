@@ -17,6 +17,7 @@ from sync.hashing import HashType, hash_dict
 from sync.provider import (
     FileAlreadyExistsError,
     FileNotFoundProviderError,
+    FolderNotFoundProviderError,
     ProviderBase,
     ProviderError,
 )
@@ -267,13 +268,43 @@ class STFPProvider(ProviderBase):
         self._ensure_dir(ssh, dir_path)
         sftp.putfo(content, full_path)
 
-    def remove(self, path: str) -> None:
+    def remove_file(self, path: str) -> None:
         ssh, sftp = self._connect()
         full_path = self._full_path(path)
         try:
             sftp.remove(full_path)
         except FileNotFoundError:
             raise FileNotFoundProviderError(f"File not found: {full_path}")
+
+    def remove_folder(self, path: str) -> None:
+        ssh, sftp = self._connect()
+        dir_path = self._full_path(path)
+
+        try:
+
+            def recursive_remove(dir_path: str):
+                for entry in sftp.listdir_attr(dir_path):
+                    is_dir = S_ISDIR(entry.st_mode)
+                    is_file = S_ISREG(entry.st_mode)
+
+                    full_path = path_join(dir_path, entry.filename)
+
+                    if is_file:
+                        sftp.remove(full_path)
+                    elif is_dir:
+                        # remove contents
+                        recursive_remove(full_path)
+
+                        # remove dir itself
+                        sftp.rmdir(full_path)
+
+            # remove contents of the folder recursively
+            recursive_remove(dir_path)
+
+            # remove empty folder
+            sftp.rmdir(dir_path)
+        except FileNotFoundError as err:
+            raise FolderNotFoundProviderError(f"Folder not found: {dir_path}") from err
 
     def move(self, source_path: str, destination_path: str) -> None:
         ssh, sftp = self._connect()

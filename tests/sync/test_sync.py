@@ -138,7 +138,7 @@ class SyncTestBase(TestCase):
 
         self.assertEqual(2, len(dst_provider.get_state().files))
 
-        src_provider.remove("foo")
+        src_provider.remove_file("foo")
 
         self.do_sync(
             [
@@ -148,7 +148,7 @@ class SyncTestBase(TestCase):
 
         self.assertEqual(1, len(dst_provider.get_state().files))
 
-        dst_provider.remove("bar")
+        dst_provider.remove_file("bar")
 
         self.do_sync(
             [
@@ -410,7 +410,7 @@ class SyncTestBase(TestCase):
             src_provider.write("foo/data", stream)
 
         # remove on destination
-        dst_provider.remove("foo/data")
+        dst_provider.remove_file("foo/data")
 
         self.assertRaises(SyncError, self.syncer.sync)
 
@@ -432,7 +432,7 @@ class SyncTestBase(TestCase):
             dst_provider.write("foo/data", stream)
 
         # remove on source
-        src_provider.remove("foo/data")
+        src_provider.remove_file("foo/data")
 
         self.assertRaises(SyncError, self.syncer.sync)
 

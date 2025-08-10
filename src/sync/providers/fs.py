@@ -15,6 +15,7 @@ from sync.provider import (
     ConflictError,
     FileAlreadyExistsError,
     FileNotFoundProviderError,
+    FolderNotFoundProviderError,
     ProviderBase,
     ProviderError,
     SafeUpdateSupportMixin,
@@ -156,12 +157,19 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
 
         self.write(path, content)
 
-    def remove(self, path: str):
+    def remove_file(self, path: str):
         abs_path = self._abs_path(path)
         try:
             os.unlink(abs_path)
         except FileNotFoundError:
             raise FileNotFoundProviderError(f"File not found: {path}")
+
+    def remove_folder(self, path: str):
+        abs_path = self._abs_path(path)
+        try:
+            shutil.rmtree(abs_path)
+        except FileNotFoundError:
+            raise FolderNotFoundProviderError(f"Folder not found: {path}")
 
     def move(self, source_path: str, destination_path: str):
         source_abs_path = self._abs_path(source_path)

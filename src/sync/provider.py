@@ -13,6 +13,10 @@ class FileNotFoundProviderError(ProviderError):
     pass
 
 
+class FolderNotFoundProviderError(ProviderError):
+    pass
+
+
 class FileAlreadyExistsError(ProviderError):
     pass
 
@@ -57,7 +61,11 @@ class ProviderBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def remove(self, path: str) -> None:
+    def remove_file(self, path: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove_folder(self, path: str) -> None:
         raise NotImplementedError
 
     @abstractmethod

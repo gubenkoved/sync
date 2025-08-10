@@ -523,10 +523,10 @@ class Syncer:
                     write(src_provider, src_state, action.path, stream)
                 src_state.files[action.path] = src_provider.get_file_state(action.path)
             elif isinstance(action, RemoveOnDestinationSyncAction):
-                dst_provider.remove(action.path)
+                dst_provider.remove_file(action.path)
                 dst_state.files.pop(action.path)
             elif isinstance(action, RemoveOnSourceSyncAction):
-                src_provider.remove(action.path)
+                src_provider.remove_file(action.path)
                 src_state.files.pop(action.path)
             elif isinstance(action, ResolveConflictSyncAction):
                 src_file_state = src_state.files.get(action.path)
