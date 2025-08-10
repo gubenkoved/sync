@@ -32,6 +32,7 @@ packaging==25.0
     #   black
     #   build
     #   pytest
+    #   pytest-rerunfailures
 pathspec==0.12.1
     # via black
 pip-tools==7.5.0
@@ -49,7 +50,10 @@ pyproject-hooks==1.2.0
 pytest==8.4.1
     # via
     #   -r .\dev-requirements.in
+    #   pytest-rerunfailures
     #   pytest-xdist
+pytest-rerunfailures==15.1
+    # via -r .\dev-requirements.in
 pytest-xdist==3.8.0
     # via -r .\dev-requirements.in
 wheel==0.45.1
