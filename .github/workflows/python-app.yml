@@ -57,10 +57,13 @@ jobs:
         SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
         SFTP_PRIVATE_KEY_BASE64: ${{ secrets.SFTP_PRIVATE_KEY_BASE64 }}
         SFTP_KEY_PATH: test.key
+
+        RERUN_COUNT: 5
+        RERUN_DELAY: 10
       run: |
         echo ${SFTP_PRIVATE_KEY_BASE64} | base64 -d > ${SFTP_KEY_PATH}
         chmod 600 ${SFTP_KEY_PATH}
         # start with non dropbox tests
-        pytest -n auto -m 'not slow and not dropbox' --reruns 3 --reruns-delay 5 --log-cli-level DEBUG
-        # dropbox tests
-        pytest -m 'not slow and dropbox' --reruns 3 --reruns-delay 5 --log-cli-level DEBUG
+        pytest -n auto -m 'not slow and not dropbox' --reruns $RERUN_COUNT --reruns-delay $RERUN_DELAY --log-cli-level DEBUG
+        # dropbox tests (no concurrency, so that API rate limits are not hit)
+        pytest -m 'not slow and dropbox' --reruns $RERUN_COUNT --reruns-delay $RERUN_DELAY --log-cli-level DEBUG
