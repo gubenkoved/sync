@@ -368,7 +368,7 @@ class ProviderTestBase(unittest.TestCase):
 
         self.assertEqual({'bar/data'}, set(provider.get_state().files))
 
-    def test_provider_unicode_normal_forms_insensitive(self):
+    def test_unicode_normalization(self):
         provider = self.get_provider()
 
         paths = [
