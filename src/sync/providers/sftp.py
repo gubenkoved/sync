@@ -341,3 +341,18 @@ class STFPProvider(ProviderBase):
             self.key_path,
             self.port,
         )
+
+    def close(self):
+        if self.__ssh_client:
+            self.__ssh_client.close()
+            self.__ssh_client = None
+
+        if self.__sftp_client:
+            self.__sftp_client.close()
+            self.__sftp_client = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception as err:
+            LOGGER.error("Error while closing inside __del__: %s", err)

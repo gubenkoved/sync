@@ -196,19 +196,18 @@ Examples:
     logging.getLogger("dropbox").setLevel(logging.WARNING)
     logging.getLogger("paramiko").setLevel(logging.WARNING)
 
-    source_provider = init_provider(args.source)
-    destination_provider = init_provider(args.destination)
-
     try:
-        main(
-            source_provider,
-            destination_provider,
-            dry_run=args.dry_run,
-            filter=args.filter,
-            depth=args.depth,
-            threads=args.threads,
-            state_dir=args.state_dir,
-        )
+        with init_provider(args.source) as src_provider:
+            with init_provider(args.destination) as dest_provider:
+                main(
+                    src_provider,
+                    dest_provider,
+                    dry_run=args.dry_run,
+                    filter=args.filter,
+                    depth=args.depth,
+                    threads=args.threads,
+                    state_dir=args.state_dir,
+                )
     except Exception as err:
         LOGGER.fatal("error: %s", err, exc_info=True)
         sys.exit(1)

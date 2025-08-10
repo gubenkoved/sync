@@ -307,3 +307,7 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             self.app_key,
             self.app_secret,
         )
+
+    def close(self):
+        # nothing to close
+        pass

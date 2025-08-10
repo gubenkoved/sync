@@ -235,3 +235,7 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
 
     def clone(self) -> "ProviderBase":
         return FSProvider(self.root_dir, self.cache)
+
+    def close(self):
+        # nothing to close
+        pass
