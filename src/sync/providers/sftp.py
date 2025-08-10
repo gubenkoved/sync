@@ -20,15 +20,8 @@ from sync.provider import (
     ProviderBase,
     ProviderError,
 )
-from sync.providers.common import (
-    path_join,
-    path_split,
-    relative_path,
-)
-from sync.state import (
-    FileState,
-    StorageState,
-)
+from sync.providers.common import path_join, path_split, relative_path, normalize_unicode
+from sync.state import FileState, StorageState
 
 LOGGER = logging.getLogger(__name__)
 
@@ -179,8 +172,17 @@ class STFPProvider(ProviderBase):
                 filename = entry.filename
                 full_path = path_join(dir_path, filename)
                 rel_path = relative_path(full_path, self.root_dir)
+                rel_path = normalize_unicode(rel_path)
 
                 if is_file:
+
+                    if rel_path in files:
+                        raise ProviderError(
+                            f"There seem to be a file with same name, but in "
+                            f"different Unicode normalization forms. This is not "
+                            f"supported. File path is \"{rel_path}\""
+                        )
+
                     files[rel_path] = self._file_state(ssh, full_path)
 
                 if is_dir:
@@ -196,6 +198,7 @@ class STFPProvider(ProviderBase):
 
     def _full_path(self, path):
         full_path = path_join(self.root_dir, path)
+        full_path = normalize_unicode(full_path)
         if not full_path.startswith(self.root_dir):
             raise ProviderError('Path outside of the root dir!')
         return full_path

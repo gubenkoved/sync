@@ -1,7 +1,7 @@
 [tool.isort]
 profile = "black"
 line_length = 88
-multi_line_output = 2
+multi_line_output = 3
 force_grid_wrap = 4
 include_trailing_comma = true
 use_parentheses = true

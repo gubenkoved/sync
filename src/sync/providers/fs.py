@@ -4,11 +4,7 @@ import shutil
 import tempfile
 from typing import BinaryIO, List
 
-from sync.cache import (
-    CACHE_MISS,
-    CacheBase,
-    InMemoryCache,
-)
+from sync.cache import CACHE_MISS, CacheBase, InMemoryCache
 from sync.hashing import (
     HashType,
     dropbox_hash_stream,
@@ -23,14 +19,8 @@ from sync.provider import (
     ProviderError,
     SafeUpdateSupportMixin,
 )
-from sync.providers.common import (
-    normalize_unicode,
-    unixify_path,
-)
-from sync.state import (
-    FileState,
-    StorageState,
-)
+from sync.providers.common import normalize_unicode, unixify_path
+from sync.state import FileState, StorageState
 
 LOGGER = logging.getLogger(__name__)
 
@@ -89,6 +79,14 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
                 if entry.is_file():
                     rel_path = os.path.relpath(entry.path, self.root_dir)
                     rel_path = unixify_path(rel_path)
+                    rel_path = normalize_unicode(rel_path)
+
+                    if rel_path in files:
+                        raise ProviderError(
+                            f"There seem to be multiple files using same name, "
+                            f"but in different Unicode normalization forms. "
+                            f"This is not supported. File path was \"{rel_path}\"")
+
                     files[rel_path] = self._file_state(rel_path)
                 elif entry.is_dir():
                     walk(entry.path, level + 1)
@@ -102,6 +100,7 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     def _abs_path(self, path: str):
         abs_path = os.path.join(self.root_dir, path)
         abs_path = os.path.abspath(abs_path)
+        abs_path = normalize_unicode(abs_path)
         if not abs_path.startswith(self.root_dir):
             raise ProviderError('path outside of root dir')
         return abs_path

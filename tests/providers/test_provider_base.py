@@ -1,7 +1,9 @@
 import abc
 import logging
 import time
+import unicodedata
 import unittest
+import uuid
 
 import pytest
 
@@ -14,11 +16,7 @@ from sync.provider import (
     SafeUpdateSupportMixin,
 )
 from sync.state import StorageState
-from tests.common import (
-    bytes_as_stream,
-    random_bytes_stream,
-    stream_to_bytes,
-)
+from tests.common import bytes_as_stream, random_bytes_stream, stream_to_bytes
 
 LOGGER = logging.getLogger(__name__)
 
@@ -369,6 +367,42 @@ class ProviderTestBase(unittest.TestCase):
         provider.move('foo/data', 'bar/data')
 
         self.assertEqual({'bar/data'}, set(provider.get_state().files))
+
+    def test_provider_unicode_normal_forms_insensitive(self):
+        provider = self.get_provider()
+
+        paths = [
+            'йогурт',
+            'ёшкин-кот'
+            # hello in chinese
+            '你好',
+            # Dropbox actually does not support emoji in the path and answer with
+            # malformed_path error
+            # '😊',
+        ]
+
+        normal_forms = [
+            'NFD',
+            'NFC',
+        ]
+
+        for path in paths:
+            for write_form in normal_forms:
+                for read_form in normal_forms:
+                    uniq = uuid.uuid4().hex
+
+                    path_in_write_form = unicodedata.normalize(write_form, path)
+                    path_in_read_form = unicodedata.normalize(read_form, path)
+
+                    write_path = f'{uniq}/{path_in_write_form}'
+                    read_path = f'{uniq}/{path_in_read_form}'
+
+                    with bytes_as_stream(b"whatever") as stream:
+                        provider.write(write_path, stream)
+
+                    read_data = provider.read(read_path).read()
+
+                    self.assertEqual(b"whatever", read_data)
 
 
 if __name__ == '__main__':

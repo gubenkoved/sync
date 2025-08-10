@@ -17,11 +17,7 @@ from sync.provider import (
     ProviderError,
     SafeUpdateSupportMixin,
 )
-from sync.providers.common import (
-    normalize_unicode,
-    path_join,
-    relative_path,
-)
+from sync.providers.common import normalize_unicode, path_join, relative_path
 from sync.state import FileState, StorageState
 
 LOGGER = logging.getLogger(__name__)
