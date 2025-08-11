@@ -20,7 +20,6 @@ class FsToDropboxSyncTest(SyncTestBase):
 
         src_dir = tempfile.mkdtemp()
         src_provider = FSProvider(root_dir=src_dir)
-        self.addCleanup(lambda: shutil.rmtree(src_dir))
 
         root_dir = "/temp/sync-tests/%s" % uuid.uuid4()
         dst_provider = DropboxProvider(

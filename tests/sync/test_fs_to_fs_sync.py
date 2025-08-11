@@ -18,9 +18,6 @@ class FsToFsSyncTest(SyncTestBase):
         src_provider = FSProvider(root_dir=src_dir)
         dst_provider = FSProvider(root_dir=dst_dir)
 
-        self.addCleanup(lambda: shutil.rmtree(src_dir))
-        self.addCleanup(lambda: shutil.rmtree(dst_dir))
-
         self._syncer = Syncer(
             src_provider,
             dst_provider,
