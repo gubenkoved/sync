@@ -63,4 +63,6 @@ jobs:
       run: |
         echo ${SFTP_PRIVATE_KEY_BASE64} | base64 -d > ${SFTP_KEY_PATH}
         chmod 600 ${SFTP_KEY_PATH}
-        pytest -n 4 -m 'not slow' --reruns $RERUN_COUNT --reruns-delay $RERUN_DELAY --log-cli-level DEBUG
+        pytest -n 4 -m 'not slow and not dropbox' --reruns $RERUN_COUNT --reruns-delay $RERUN_DELAY --log-cli-level DEBUG
+        # limit concurrency for Dropbox tests as otherwise we are getting "too many write operations"
+        pytest -n 1 -m 'not slow and dropbox' --reruns $RERUN_COUNT --reruns-delay $RERUN_DELAY --log-cli-level DEBUG
