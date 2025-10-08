@@ -55,3 +55,19 @@ def normalize_unicode(string: str) -> str:
     # Normal form C (NFC) first applies a canonical decomposition,
     # then composes pre-combined characters again
     return unicodedata.normalize(UNICODE_NORMAL_FORM, string)
+
+
+def normalize_path(path: str, case_insensitive: bool = False) -> str:
+    """
+    Normalize path string to be used in various comparison to infer if the
+    paths are equivalent or not.
+
+    Unicode string are normalized to NFC form.
+    In case-insensitive mode, we also lower case the path
+    """
+    path = normalize_unicode(path)
+
+    if case_insensitive:
+        path = path.lower()
+
+    return path

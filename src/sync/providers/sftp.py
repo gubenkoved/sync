@@ -166,9 +166,11 @@ class STFPProvider(ProviderBase):
             raise ProviderError("unable to calculate file hash")
         return stdout_str.split(" ")[0]
 
-    @staticmethod
-    def _file_state(ssh: paramiko.SSHClient, full_path: str):
+    def _file_state(self, ssh: paramiko.SSHClient, full_path: str):
+        rel_path = relative_path(full_path, self.root_dir)
+        rel_path = normalize_unicode(rel_path)
         return FileState(
+            path=rel_path,
             content_hash=STFPProvider._sha256_file(ssh, full_path),
             hash_type=HashType.SHA256,
         )

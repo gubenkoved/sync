@@ -109,9 +109,12 @@ class DropboxProvider(ProviderBase, SafeUpdateSupportMixin):
             entries.extend(list_result.entries)
         return entries
 
-    @staticmethod
-    def _file_metadata_to_file_state(entry: FileMetadata):
+    def _file_metadata_to_file_state(self, entry: FileMetadata):
+        full_path = entry.path_display
+        self.__ensure_inside_root(full_path)
+        rel_path = relative_path(full_path, self.root_dir)
         return FileState(
+            path=rel_path,
             content_hash=entry.content_hash,
             hash_type=HashType.DROPBOX_SHA256,
             revision=entry.rev,
