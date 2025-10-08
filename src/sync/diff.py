@@ -138,3 +138,6 @@ class StorageStateDiff:
                 )
 
         return StorageStateDiff(changes)
+
+    def __repr__(self):
+        return "StorageStateDiff(%d changes)" % len(self.changes)

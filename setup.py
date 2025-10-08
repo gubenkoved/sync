@@ -3,7 +3,7 @@ from setuptools import find_namespace_packages, setup
 if __name__ == "__main__":
     setup(
         name="sync",
-        version="0.5.0",
+        version="0.6.0",
         packages=find_namespace_packages(where="src"),
         package_dir={"": "src"},
         install_requires=[

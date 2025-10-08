@@ -63,6 +63,7 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
     def _file_state(self, rel_path: str) -> FileState:
         abs_path = self._abs_path(rel_path)
         return FileState(
+            path=rel_path,
             content_hash=self.compute_hash(rel_path, HashType.SHA256),
             hash_type=HashType.SHA256,
             revision=str(os.path.getmtime(abs_path)),

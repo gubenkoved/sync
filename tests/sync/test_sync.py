@@ -19,11 +19,12 @@ from sync.core import (
     make_filter,
 )
 from sync.provider import ProviderBase
+from sync.providers.common import normalize_path
 from tests.common import (
     bytes_as_stream,
+    cleanup_provider,
     random_bytes_stream,
     stream_to_bytes,
-    cleanup_provider,
 )
 
 
@@ -57,14 +58,23 @@ class SyncTestBase(TestCase):
             src_state = filter_state(src_state, filter_matcher)
             dst_state = filter_state(dst_state, filter_matcher)
 
+        self.syncer._normalize_state(src_state)
+        self.syncer._normalize_state(dst_state)
+
         # ensure same file lists
         # note that we can not directly compare different providers StorageState
         # as the content hash is abstract and can mean different things
         self.assertEqual(set(src_state.files), set(dst_state.files))
 
-        for path in src_state.files:
+        for normalized_path in src_state.files:
+            source_file_state = src_state.files[normalized_path]
+            destination_file_state = dst_state.files[normalized_path]
             self.assertTrue(
-                self.syncer.compare(path), f"files are different by path {path}"
+                self.syncer.compare_files(
+                    src_path=source_file_state.path,
+                    dst_path=destination_file_state.path,
+                ),
+                f'files are different by path "{normalized_path}"',
             )
 
     def do_sync(self, expected_sync_actions=None, ensure_same_state=True):
@@ -332,9 +342,17 @@ class SyncTestBase(TestCase):
             ]
         )
 
-    def test_case_only_filename_change(self):
+    def test_case_only_filename_change_both_case_sensitive_providers(self):
+        # this test is only valid if both providers support case sensitivity
+
         src_provider = self.syncer.src_provider
         dst_provider = self.syncer.dst_provider
+
+        if not src_provider.is_case_sensitive() or not dst_provider.is_case_sensitive():
+            self.skipTest(
+                "Both source and destination providers should be "
+                "case sensitive for this test"
+            )
 
         with bytes_as_stream(b"data") as stream:
             src_provider.write("foo/data", stream)
@@ -360,6 +378,41 @@ class SyncTestBase(TestCase):
                 MoveOnSourceSyncAction("foo/Data", "foo/DATA"),
             ]
         )
+
+    def test_case_only_filename_change_case_insensitive_scenario(self):
+        # this test is only valid if at least ONE provider is NOT case-sensitive
+
+        src_provider = self.syncer.src_provider
+        dst_provider = self.syncer.dst_provider
+
+        if src_provider.is_case_sensitive() and dst_provider.is_case_sensitive():
+            self.skipTest(
+                "At least source or destination provider should be "
+                "case insensitive for this test"
+            )
+
+        with bytes_as_stream(b"data") as stream:
+            src_provider.write("foo/data", stream)
+
+        self.do_sync(
+            [
+                UploadSyncAction("foo/data"),
+            ]
+        )
+
+        # move itself using the provider should be respected
+        src_provider.move("foo/data", "foo/Data")
+
+        file_state = src_provider.get_file_state("foo/Data")
+        self.assertEqual(file_state.path, "foo/Data")
+
+        # however on sync we normalized the path and would not do anything
+        self.do_sync([])
+
+        dst_provider.move("foo/data", "foo/DATA")
+
+        # same here, we still did not do anything
+        self.do_sync([])
 
     def test_move_same_way_on_both_sides_is_noop(self):
         src_provider = self.syncer.src_provider

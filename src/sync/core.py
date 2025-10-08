@@ -28,6 +28,7 @@ from sync.diff import (
 )
 from sync.hashing import HashType, hash_dict, hash_stream
 from sync.provider import ProviderBase, SafeUpdateSupportMixin
+from sync.providers.common import normalize_path
 from sync.state import FileState, StorageState, SyncPairState
 
 LOGGER = logging.getLogger(__name__)
@@ -48,10 +49,12 @@ class SyncAction(abc.ABC):
         return self.path == other.path
 
 
+# download means from DESTINATION to SOURCE
 class DownloadSyncAction(SyncAction):
     TYPE = "DOWNLOAD"
 
 
+# upload means from SOURCE to DESTINATION
 class UploadSyncAction(SyncAction):
     TYPE = "UPLOAD"
 
@@ -180,6 +183,70 @@ def make_filter(filter_expr: str) -> Callable[[str], bool]:
     return result_matcher
 
 
+def compare_files(
+    src_state: FileState,
+    dst_state: FileState,
+    src_provider: ProviderBase,
+    dst_provider: ProviderBase,
+) -> bool:
+    """
+    Compares files at given relative path between source and destination
+    providers. Note that direct comparison of content hash is not correct
+    as different profiles can be using different approaches to computing
+    the hash.
+
+    Returns boolean indicating if two files are identical.
+    """
+    LOGGER.debug(
+        'comparing file at "%s"/"%s" (source/destination)...',
+        src_state.path,
+        dst_state.path,
+    )
+
+    # see if we can compare hashes "remotely"
+    shared_hash_types = set(src_provider.supported_hash_types()) & set(
+        dst_provider.supported_hash_types()
+    )
+
+    if shared_hash_types:
+        LOGGER.debug(
+            "hashes supported by both providers: %s",
+            ", ".join(str(t) for t in shared_hash_types),
+        )
+
+        # if there are multiple shared hash types try to pick one which is
+        # already calculated for both or at least for one provider
+        def hash_type_preference(hash_type: HashType):
+            preference = 0
+            if hash_type == src_state.hash_type:
+                preference += 1
+            if hash_type == dst_state.hash_type:
+                preference += 1
+            return preference
+
+        chosen_hash_type: HashType = sorted(
+            shared_hash_types, key=hash_type_preference, reverse=True
+        )[0]
+
+        # try to get hash from the already computed file state when
+        # possible to avoid provider invocation
+        def compute_hash(file_state: FileState, provider: ProviderBase):
+            if file_state.hash_type == chosen_hash_type:
+                return file_state.content_hash
+            return provider.compute_hash(file_state.path, chosen_hash_type)
+
+        src_hash = compute_hash(src_state, src_provider)
+        dst_hash = compute_hash(dst_state, dst_provider)
+    else:  # download and compute locally
+        LOGGER.debug("no shared hashes, download both and compare locally")
+        src_hash = hash_stream(src_provider.read(src_state.path))
+        dst_hash = hash_stream(dst_provider.read(dst_state.path))
+
+    LOGGER.debug('source hash "%s", destination hash "%s"', src_hash, dst_hash)
+
+    return src_hash == dst_hash
+
+
 class Syncer:
     def __init__(
         self,
@@ -239,73 +306,15 @@ class Syncer:
         with open(self.get_state_file_path(), "wb") as f:
             return state.save(f)
 
-    def compare(self, path: str) -> bool:
-        src_state = self.src_provider.get_file_state(path)
-        dst_state = self.dst_provider.get_file_state(path)
-        return self.__compare(
-            path, src_state, dst_state, self.src_provider, self.dst_provider
+    def compare_files(self, src_path: str, dst_path: str) -> bool:
+        src_file_state = self.src_provider.get_file_state(src_path)
+        dst_file_state = self.dst_provider.get_file_state(dst_path)
+        return compare_files(
+            src_file_state,
+            dst_file_state,
+            self.src_provider,
+            self.dst_provider,
         )
-
-    @staticmethod
-    def __compare(
-        path: str,
-        src_state: FileState,
-        dst_state: FileState,
-        src_provider: ProviderBase,
-        dst_provider: ProviderBase,
-    ) -> bool:
-        """
-        Compares files at given relative path between source and destination
-        providers. Note that direct comparison of content hash is not correct
-        as different profiles can be using different approaches to computing
-        the hash.
-
-        Returns boolean indicating if two files are identical.
-        """
-        LOGGER.debug('comparing file at "%s" source vs. destination...', path)
-
-        # see if we can compare hashes "remotely"
-        shared_hash_types = set(src_provider.supported_hash_types()) & set(
-            dst_provider.supported_hash_types()
-        )
-
-        if shared_hash_types:
-            LOGGER.debug(
-                "hashes supported by both providers: %s",
-                ", ".join(str(t) for t in shared_hash_types),
-            )
-
-            # if there are multiple shared hash types try to pick one which is
-            # already calculated for both or at least for one provider
-            def hash_type_preference(hash_type: HashType):
-                preference = 0
-                if hash_type == src_state.hash_type:
-                    preference += 1
-                if hash_type == dst_state.hash_type:
-                    preference += 1
-                return preference
-
-            chosen_hash_type: HashType = sorted(
-                shared_hash_types, key=hash_type_preference, reverse=True
-            )[0]
-
-            # try to get hash from the already computed file state when
-            # possible to avoid provider invocation
-            def compute_hash(file_state: FileState, provider: ProviderBase):
-                if file_state.hash_type == chosen_hash_type:
-                    return file_state.content_hash
-                return provider.compute_hash(path, chosen_hash_type)
-
-            src_hash = compute_hash(src_state, src_provider)
-            dst_hash = compute_hash(dst_state, dst_provider)
-        else:  # download and compute locally
-            LOGGER.debug("no shared hashes, download both and compare locally")
-            src_hash = hash_stream(src_provider.read(path))
-            dst_hash = hash_stream(dst_provider.read(path))
-
-        LOGGER.debug('source hash "%s", destination hash "%s"', src_hash, dst_hash)
-
-        return src_hash == dst_hash
 
     def __resolve_mutual_movement(
         self, src: MovedDiffType, dst: MovedDiffType
@@ -323,6 +332,43 @@ class Syncer:
 
         return RaiseErrorSyncAction(src.path, message)
 
+    def _normalize_state(self, state: StorageState):
+        """
+        Replaces paths in the storage state with its normalized version.
+        If it produces the conflict, then error is raised and we can not
+        sync such pair. It could happen if we try to sync case-sensitive
+        provider that has collisions if we turn paths case-insensitive
+        (in order to properly sync with case-insensitive provider).
+        """
+        case_sensitive = (
+            self.src_provider.is_case_sensitive()
+            and self.dst_provider.is_case_sensitive()
+        )
+
+        LOGGER.debug(
+            'normalizing state "%s", case-sensitive? %s',
+            state,
+            case_sensitive,
+        )
+
+        remapped_files = {}
+        for path, file_state in state.files.items():
+            normalized_path = normalize_path(path, case_insensitive=not case_sensitive)
+
+            if normalized_path in remapped_files:
+                raise SyncError(
+                    "Error during paths normalization pass (is case-sensitive? %s). "
+                    'Path "%s" normalized to "%s" caused collision',
+                    case_sensitive,
+                    path,
+                    normalized_path,
+                )
+
+            remapped_files[normalized_path] = file_state
+
+        # replace the dictionary
+        state.files = remapped_files
+
     def sync(self, dry_run: bool = False) -> List[SyncAction]:
         LOGGER.info(
             "syncing %s <---> %s%s",
@@ -336,14 +382,19 @@ class Syncer:
         src_state_snapshot = pair_state.source_state
         dst_state_snapshot = pair_state.dest_state
 
-        src_state = self.src_provider.get_state(self.depth)
-        dst_state = self.dst_provider.get_state(self.depth)
+        src_state: StorageState = self.src_provider.get_state(self.depth)
+        dst_state: StorageState = self.dst_provider.get_state(self.depth)
 
         if self.filter:
             filter_matcher = make_filter(self.filter)
             src_state = filter_state(src_state, filter_matcher)
             dst_state = filter_state(dst_state, filter_matcher)
 
+        # normalize the paths from providers
+        self._normalize_state(src_state)
+        self._normalize_state(dst_state)
+
+        # storage diff is calculated using normalized path as a key
         src_full_diff = StorageStateDiff.compute(src_state, src_state_snapshot)
         dst_full_diff = StorageStateDiff.compute(dst_state, dst_state_snapshot)
 
@@ -399,39 +450,8 @@ class Syncer:
             (MovedDiffType, MovedDiffType): self.__resolve_mutual_movement,
         }
 
-        is_case_sensitive = (
-            self.src_provider.is_case_sensitive()
-            and self.dst_provider.is_case_sensitive()
-        )
-
-        def normalize_dict_keys(dictionary) -> dict[str, typing.Any]:
-            normalized_keys_counter = collections.defaultdict(int)
-
-            for key in dictionary:
-                normalized_keys_counter[
-                    self.__normalize_case(key, is_case_sensitive)
-                ] += 1
-
-            case_conflicting_keys = [
-                k for k, v in normalized_keys_counter.items() if v > 1
-            ]
-
-            if case_conflicting_keys:
-                LOGGER.error("conflicting keys: %s", case_conflicting_keys)
-                raise SyncError(
-                    "Found multiple keys which are same after normalized "
-                    "case, can not sync! "
-                    "Working in case-insensitive mode because one or two "
-                    "providers in sync pair are case-insensitive."
-                )
-
-            return {
-                self.__normalize_case(k, is_case_sensitive): v
-                for k, v in dictionary.items()
-            }
-
-        src_changes = normalize_dict_keys(src_full_diff.changes)
-        dst_changes = normalize_dict_keys(dst_full_diff.changes)
+        src_changes = src_full_diff.changes
+        dst_changes = dst_full_diff.changes
 
         # process both source and destination changes
         changed_files = set(src_changes) | set(dst_changes)
@@ -476,27 +496,6 @@ class Syncer:
         if dry_run:
             LOGGER.warning("dry run mode!")
 
-        def write(
-            provider: ProviderBase, state: StorageState, path: str, stream: BinaryIO
-        ):
-            cur_file_state = state.files.get(path)
-            safe_update_supported = (
-                cur_file_state
-                and cur_file_state.revision
-                and isinstance(provider, SafeUpdateSupportMixin)
-            )
-            if safe_update_supported:
-                LOGGER.debug(
-                    'safe updating "%s" (expected revision "%s")',
-                    path,
-                    cur_file_state.revision,
-                )
-                assert isinstance(provider, SafeUpdateSupportMixin)
-                provider.update(path, stream, revision=cur_file_state.revision)
-            else:  # either file is new or provider does not support concurrency safe update
-                LOGGER.debug('writing file at "%s"', path)
-                provider.write(path, stream)
-
         thread_local = threading.local()
 
         def get_providers():
@@ -508,64 +507,19 @@ class Syncer:
                 )
             return thread_local.providers
 
-        # TODO: separate out sync actions executor for better clarity
-        def run_action(action: SyncAction):
-            LOGGER.info("apply %s", action)
-
+        # TODO: consider having separate ActionExecutor per thread instead of
+        #  recreating it on each action
+        def run_action(action: SyncAction) -> None:
             src_provider, dst_provider = get_providers()
 
-            if isinstance(action, UploadSyncAction):
-                with src_provider.read(action.path) as stream:
-                    write(dst_provider, dst_state, action.path, stream)
-                dst_state.files[action.path] = dst_provider.get_file_state(action.path)
-            elif isinstance(action, DownloadSyncAction):
-                with dst_provider.read(action.path) as stream:
-                    write(src_provider, src_state, action.path, stream)
-                src_state.files[action.path] = src_provider.get_file_state(action.path)
-            elif isinstance(action, RemoveOnDestinationSyncAction):
-                dst_provider.remove_file(action.path)
-                dst_state.files.pop(action.path)
-            elif isinstance(action, RemoveOnSourceSyncAction):
-                src_provider.remove_file(action.path)
-                src_state.files.pop(action.path)
-            elif isinstance(action, ResolveConflictSyncAction):
-                src_file_state = src_state.files.get(action.path)
-                dst_file_state = dst_state.files.get(action.path)
+            action_executor = ActionExecutor(
+                src_provider=src_provider,
+                dst_provider=dst_provider,
+                src_state=src_state,
+                dst_state=dst_state,
+            )
 
-                are_equal = self.__compare(
-                    action.path,
-                    src_file_state,
-                    dst_file_state,
-                    src_provider,
-                    dst_provider,
-                )
-
-                if not are_equal:
-                    raise SyncError(
-                        f'Unable to resolve conflict for "{action.path}" -- files are '
-                        "different!"
-                    )
-
-                LOGGER.debug(
-                    'resolved conflict for "%s" as files identical', action.path
-                )
-            elif isinstance(action, MoveOnSourceSyncAction):
-                src_provider.move(action.path, action.new_path)
-                src_state.files[action.new_path] = src_state.files[action.path]
-                src_state.files.pop(action.path)
-            elif isinstance(action, MoveOnDestinationSyncAction):
-                dst_provider.move(action.path, action.new_path)
-                dst_state.files[action.new_path] = dst_state.files[action.path]
-                dst_state.files.pop(action.path)
-            elif isinstance(action, NoopSyncAction):
-                # no action is needed
-                pass
-            elif isinstance(action, RaiseErrorSyncAction):
-                raise SyncError(
-                    f'error occurred for path "{action.path}": {action.message}'
-                )
-            else:
-                raise NotImplementedError(f"action {action}")
+            action_executor.execute(action)
 
         sync_errors = []
 
@@ -623,7 +577,7 @@ class Syncer:
             LOGGER.info("no changes to sync")
 
         if not dry_run:
-            self.__correctness_check(src_state, dst_state, is_case_sensitive)
+            self.__correctness_check(src_state, dst_state)
 
             LOGGER.debug("saving state")
             LOGGER.debug("src state: %s", src_state.files)
@@ -638,21 +592,12 @@ class Syncer:
         return list(actions.values())
 
     @staticmethod
-    def __normalize_case(path: str, is_case_sensitive: bool = False):
-        if is_case_sensitive:
-            return path
-        return path.lower()
-
-    @staticmethod
     def __correctness_check(
-        src_state: StorageState, dst_state: StorageState, is_case_sensitive: bool
+        src_state: StorageState,
+        dst_state: StorageState,
     ):
-        src_files = set(
-            Syncer.__normalize_case(path, is_case_sensitive) for path in src_state.files
-        )
-        dst_files = set(
-            Syncer.__normalize_case(path, is_case_sensitive) for path in dst_state.files
-        )
+        src_files = set(src_state.files)
+        dst_files = set(dst_state.files)
 
         missing_on_dst = dst_files - src_files
         missing_on_src = src_files - dst_files
@@ -666,3 +611,108 @@ class Syncer:
                     missing_on_dst,
                 )
             )
+
+
+class ActionExecutor:
+    def __init__(
+        self,
+        src_provider: ProviderBase,
+        dst_provider: ProviderBase,
+        src_state: StorageState,
+        dst_state: StorageState,
+    ):
+        self.src_provider = src_provider
+        self.dst_provider = dst_provider
+        self.src_state = src_state
+        self.dst_state = dst_state
+
+    @staticmethod
+    def __write(
+        provider: ProviderBase,
+        state: StorageState,
+        path: str,
+        stream: BinaryIO,
+    ):
+        cur_file_state = state.files.get(path)
+        safe_update_supported = (
+            cur_file_state
+            and cur_file_state.revision
+            and isinstance(provider, SafeUpdateSupportMixin)
+        )
+        if safe_update_supported:
+            LOGGER.debug(
+                'safe updating "%s" (expected revision "%s")',
+                path,
+                cur_file_state.revision,
+            )
+            assert isinstance(provider, SafeUpdateSupportMixin)
+            provider.update(path, stream, revision=cur_file_state.revision)
+        else:  # either file is new or provider does not support concurrency safe update
+            LOGGER.debug('writing file at "%s"', path)
+            provider.write(path, stream)
+
+    def execute(self, action: SyncAction):
+        LOGGER.info("apply %s", action)
+
+        src_provider, dst_provider = self.src_provider, self.dst_provider
+        src_state, dst_state = self.src_state, self.dst_state
+
+        if isinstance(action, UploadSyncAction):
+            src_file_state = src_state.files.get(action.path)
+            actual_file_path = src_file_state.path
+            with src_provider.read(actual_file_path) as stream:
+                self.__write(dst_provider, dst_state, actual_file_path, stream)
+            dst_state.files[action.path] = dst_provider.get_file_state(actual_file_path)
+        elif isinstance(action, DownloadSyncAction):
+            dst_file_state = dst_state.files[action.path]
+            actual_file_path = dst_file_state.path
+            with dst_provider.read(actual_file_path) as stream:
+                self.__write(src_provider, src_state, actual_file_path, stream)
+            src_state.files[action.path] = src_provider.get_file_state(actual_file_path)
+        elif isinstance(action, RemoveOnDestinationSyncAction):
+            dst_file_state = dst_state.files[action.path]
+            dst_provider.remove_file(dst_file_state.path)
+            dst_state.files.pop(action.path)
+        elif isinstance(action, RemoveOnSourceSyncAction):
+            src_file_state = src_state.files[action.path]
+            src_provider.remove_file(src_file_state.path)
+            src_state.files.pop(action.path)
+        elif isinstance(action, ResolveConflictSyncAction):
+            src_file_state = src_state.files.get(action.path)
+            dst_file_state = dst_state.files.get(action.path)
+
+            are_equal = compare_files(
+                src_file_state,
+                dst_file_state,
+                src_provider,
+                dst_provider,
+            )
+
+            if not are_equal:
+                raise SyncError(
+                    f'Unable to resolve conflict for "{action.path}" -- files are '
+                    "different!"
+                )
+
+            LOGGER.debug('resolved conflict for "%s" as files identical', action.path)
+        elif isinstance(action, MoveOnSourceSyncAction):
+            src_file_state_old = src_state.files[action.path]
+            dst_file_state_new = dst_state.files[action.new_path]
+            src_provider.move(src_file_state_old.path, dst_file_state_new.path)
+            src_state.files[action.new_path] = src_state.files[action.path]
+            src_state.files.pop(action.path)
+        elif isinstance(action, MoveOnDestinationSyncAction):
+            dst_file_state_old = dst_state.files[action.path]
+            src_file_state_new = src_state.files[action.new_path]
+            dst_provider.move(dst_file_state_old.path, src_file_state_new.path)
+            dst_state.files[action.new_path] = dst_state.files[action.path]
+            dst_state.files.pop(action.path)
+        elif isinstance(action, NoopSyncAction):
+            # no action is needed
+            pass
+        elif isinstance(action, RaiseErrorSyncAction):
+            raise SyncError(
+                f'error occurred for path "{action.path}": {action.message}'
+            )
+        else:
+            raise NotImplementedError(f"action {action}")
