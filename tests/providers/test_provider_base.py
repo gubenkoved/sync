@@ -434,6 +434,28 @@ class ProviderTestBase(unittest.TestCase):
 
         self.assertEqual({"file"}, set(provider.get_state().files))
 
+    def test_write_files_using_different_casing_for_parent_directory_for_case_insensitive_provider(
+        self,
+    ):
+        provider = self.get_provider()
+
+        if provider.is_case_sensitive():
+            self.skipTest("not supported")
+
+        self.create_file(provider, "foo/file1")
+        self.create_file(provider, "FOO/file2")
+        self.create_file(provider, "foO/file3")
+
+        # first file basically drives the folder name
+        self.assertEqual(
+            {
+                "foo/file1",
+                "foo/file2",
+                "foo/file3",
+            },
+            set(provider.get_state().files),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
