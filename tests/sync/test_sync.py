@@ -19,7 +19,6 @@ from sync.core import (
     make_filter,
 )
 from sync.provider import ProviderBase
-from sync.providers.common import normalize_path
 from tests.common import (
     bytes_as_stream,
     cleanup_provider,

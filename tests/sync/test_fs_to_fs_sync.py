@@ -1,4 +1,3 @@
-import shutil
 import tempfile
 
 from sync.core import Syncer

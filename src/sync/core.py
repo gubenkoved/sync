@@ -1,5 +1,4 @@
 import abc
-import collections
 from collections import Counter
 import concurrent.futures
 import fnmatch
@@ -8,7 +7,6 @@ import os.path
 import re
 import threading
 import time
-import typing
 from typing import (
     BinaryIO,
     Callable,
