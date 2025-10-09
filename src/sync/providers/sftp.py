@@ -43,6 +43,7 @@ class STFPProvider(ProviderBase):
         password: Optional[str] = None,
         key_path: Optional[str] = None,
         port: int = 22,
+        is_case_sensitive: Optional[bool] = None,
     ):
         """
         Implements SFTP provider with POSIX-compatible (Unix, MacOS)
@@ -60,11 +61,16 @@ class STFPProvider(ProviderBase):
 
         self.__ssh_client = None
         self.__sftp_client = None
-        self.__is_case_sensitive = self.__determine_if_case_sensitive()
 
-        LOGGER.debug(
-            "is remote file system case-sensitive? %s ", self.__is_case_sensitive
-        )
+        if is_case_sensitive is not None:
+            self.__is_case_sensitive = is_case_sensitive
+        else:
+            self.__is_case_sensitive = self.__determine_if_case_sensitive()
+            LOGGER.debug(
+                "automatic-case sensitivity detection result: is remote file "
+                "system case-sensitive? %s ",
+                self.__is_case_sensitive,
+            )
 
     def __determine_if_case_sensitive(self):
         ssh_client, _ = self._connect()
@@ -73,7 +79,8 @@ class STFPProvider(ProviderBase):
             'TEST_PATH="$(mktemp).case.test"; '
             'touch "$TEST_PATH"; '
             'TEST_PATH_UPPER="$(echo "$TEST_PATH" | tr "[:lower:]" "[:upper:]")"; '
-            'test -f $TEST_PATH_UPPER && echo "case-insensitive" || echo "case-sensitive";'
+            'test -f $TEST_PATH_UPPER && echo "case-insensitive" || echo "case-sensitive"; '
+            'rm -f "$TEST_PATH" "$TEST_PATH_UPPER"; '
         )
 
         stdout, _ = self.__run_ssh_command(check_command)
@@ -367,12 +374,13 @@ class STFPProvider(ProviderBase):
 
     def clone(self) -> "ProviderBase":
         return STFPProvider(
-            self.host,
-            self.username,
-            self.root_dir,
-            self.password,
-            self.key_path,
-            self.port,
+            host=self.host,
+            username=self.username,
+            root_dir=self.root_dir,
+            password=self.password,
+            key_path=self.key_path,
+            port=self.port,
+            is_case_sensitive=self.__is_case_sensitive,
         )
 
     def close(self):
