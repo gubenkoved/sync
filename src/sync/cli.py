@@ -26,7 +26,7 @@ def main(
     destination_provider: ProviderBase,
     dry_run: bool,
     filter: Optional[str],
-    depth: int | None,
+    depth: Optional[int],
     threads: int,
     state_dir: str,
 ):
@@ -77,8 +77,6 @@ def init_provider(args: List[str]):
             root_dir=get("root"),
         )
         cache_path = os.path.join(cache_dir, provider.get_handle())
-        # TODO: is there less clumsy way to pass cache? Should I make "get_handle"
-        #  a static method, so that instance is not required?
         cache = InMemoryCacheWithStorage(cache_path)
         provider.cache = cache
         cache.try_load()
@@ -128,28 +126,33 @@ def init_provider(args: List[str]):
 def entrypoint():
     parser = argparse.ArgumentParser(
         description="""
-Provider options have to be passed in key=value format.
+Provider options have to be passed in "key=value" format.
+
+For example:
+    egsync -s FS root=/data/backup -d D root=/data id=personal access_token=...
 
 Supported providers:
 
 FS - File system
-    root: Path to root directory
+    root: Path to the root directory (e.g. "/data/backup")
+    
 D - Dropbox
-    root: Path to root directory
-    id: User arbitrary ID for account
-
-    auth options:
-        access_token
-    or
-        refresh_token
-        app_key
-        app_secret
+    root:           Path to the root directory (e.g. "/data")
+    id:             User arbitrary ID for account (e.g. "personal")
+    
+    Authentication options (one of the two):
+        access_token:   Optional access token
+        OR
+        refresh_token:  Optional refresh token
+        app_key:        Optional API key
+        app_secret:     Optional APP secret
+        
 SFTP - SFTP (POSIX hosts only)
-    host: ip or hostname of target
-    root: Path to root directory
-    key: Optional path to key file
-    pass: Optional pass
-    port: Optional port number (22 is default)
+    host:   ip or hostname of the target machine
+    root:   Path to the root directory
+    key:    Optional path to the key file
+    pass:   Optional password
+    port:   Optional port number (22 is default)
 """,
         formatter_class=RawTextHelpFormatter,
     )
