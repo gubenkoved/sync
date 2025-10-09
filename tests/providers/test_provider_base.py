@@ -456,6 +456,39 @@ class ProviderTestBase(unittest.TestCase):
             set(provider.get_state().files),
         )
 
+    def test_get_state_with_limited_depth(self):
+        provider = self.get_provider()
+
+        self.create_file(provider, "file1")
+        self.create_file(provider, "file2")
+        self.create_file(provider, "foo/file1")
+        self.create_file(provider, "foo/file2")
+        self.create_file(provider, "foo/bar/file1")
+        self.create_file(provider, "foo/bar/file2")
+        self.create_file(provider, "bar/file1")
+        self.create_file(provider, "bar/file2")
+
+        self.assertEqual(
+            {
+                "file1",
+                "file2",
+            },
+            set(provider.get_state(depth=1).files),
+        )
+
+        # increase depth
+        self.assertEqual(
+            {
+                "file1",
+                "file2",
+                "foo/file1",
+                "foo/file2",
+                "bar/file1",
+                "bar/file2",
+            },
+            set(provider.get_state(depth=2).files),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

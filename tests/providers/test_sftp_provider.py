@@ -18,7 +18,7 @@ LOGGER = logging.getLogger(__name__)
 class SFTPProviderTest(ProviderTestBase):
     __test__ = True
 
-    def __create_provider(self, root_dir: str):
+    def __create_provider(self, root_dir: str) -> STFPProvider:
         return STFPProvider(
             root_dir=root_dir,
             host=os.environ["SFTP_HOST"],

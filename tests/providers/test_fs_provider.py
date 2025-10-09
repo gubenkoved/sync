@@ -17,7 +17,7 @@ LOGGER = logging.getLogger(__name__)
 class FSProviderTest(ProviderTestBase):
     __test__ = True
 
-    def __create_provider(self, root_dir: str) -> DropboxProvider:
+    def __create_provider(self, root_dir: str) -> FSProvider:
         return FSProvider(
             root_dir=root_dir,
             cache=self.cache,
