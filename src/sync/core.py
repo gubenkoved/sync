@@ -496,27 +496,19 @@ class Syncer:
 
         thread_local = threading.local()
 
-        def get_providers():
-            if not hasattr(thread_local, "providers"):
-                LOGGER.debug("create new provider instances...")
-                thread_local.providers = (
-                    self.src_provider.clone(),
-                    self.dst_provider.clone(),
+        def get_thread_executor():
+            if not hasattr(thread_local, "executor"):
+                LOGGER.debug("create new ActionExecutor instances...")
+                thread_local.executor = ActionExecutor(
+                    src_provider=self.src_provider.clone(),
+                    dst_provider=self.dst_provider.clone(),
+                    src_state=src_state,
+                    dst_state=dst_state,
                 )
-            return thread_local.providers
+            return thread_local.executor
 
-        # TODO: consider having separate ActionExecutor per thread instead of
-        #  recreating it on each action
         def run_action(action: SyncAction) -> None:
-            src_provider, dst_provider = get_providers()
-
-            action_executor = ActionExecutor(
-                src_provider=src_provider,
-                dst_provider=dst_provider,
-                src_state=src_state,
-                dst_state=dst_state,
-            )
-
+            action_executor = get_thread_executor()
             action_executor.execute(action)
 
         sync_errors = []
