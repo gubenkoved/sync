@@ -142,6 +142,8 @@ class FSProvider(ProviderBase, SafeUpdateSupportMixin):
                 if not buffer:
                     break
                 temp_file.write(buffer)
+            temp_file.flush()
+            os.fsync(temp_file.fileno())
 
         # now atomically move temp file
         shutil.move(temp_file.name, abs_path)
